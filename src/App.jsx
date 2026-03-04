@@ -29,6 +29,7 @@ export default function App() {
   const [showingAchievement, setShowingAchievement] = useState(null);
   const pixiAppRef = useRef(null);
   const hubContainerRef = useRef(null);
+  const [pixiReadyCounter, setPixiReadyCounter] = useState(0);
 
   // Watch for new achievements
   const prevAchievements = useRef(state.achievements.length);
@@ -48,8 +49,8 @@ export default function App() {
   }, [achievementQueue, showingAchievement]);
 
   const rebuildHub = useCallback(() => {
-    if (!pixiAppRef.current) return;
     const app = pixiAppRef.current;
+    if (!app || !app.stage) return;
     if (hubContainerRef.current) {
       app.stage.removeChild(hubContainerRef.current);
       hubContainerRef.current.destroy({ children: true });
@@ -61,13 +62,14 @@ export default function App() {
 
   const handlePixiReady = useCallback((app) => {
     pixiAppRef.current = app;
+    setPixiReadyCounter(c => c + 1);
   }, []);
 
   useEffect(() => {
-    if (phase === "hub" && pixiAppRef.current) {
+    if (phase === "hub" && pixiAppRef.current && pixiAppRef.current.stage) {
       rebuildHub();
     }
-  }, [phase, rebuildHub]);
+  }, [phase, rebuildHub, pixiReadyCounter]);
 
   const handleRoomClick = useCallback((roomId) => {
     if (roomId === "bridge") return; // Bridge is just the intro, no mission

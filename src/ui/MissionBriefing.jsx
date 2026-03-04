@@ -8,6 +8,11 @@ const MISSION_INFO = {
     objective: "Classify incoming alien signals as FRIENDLY or HOSTILE to restore ARIA's pattern recognition.",
     concept: "Supervised Learning",
     color: "#10b981",
+    steps: [
+      "Each signal shows a waveform, frequency (LOW/HIGH), and pattern (REPEATING/CHAOTIC)",
+      "Click FRIENDLY or HOSTILE to classify it — friendly signals are LOW frequency + REPEATING pattern",
+      "Build streaks of correct answers for bonus XP!",
+    ],
   },
   neuralcore: {
     title: "NEURAL CORE",
@@ -15,13 +20,23 @@ const MISSION_INFO = {
     objective: "Adjust ARIA's synaptic weights to restore her decision-making circuits.",
     concept: "Neural Networks",
     color: "#8b5cf6",
+    steps: [
+      "Drag the 3 weight sliders to adjust how much each input matters",
+      "Watch the output percentage change in real-time — get it above 70%",
+      "Click ACTIVATE NEURAL CORE when the output is high enough",
+    ],
   },
   simdeck: {
     title: "SIMULATION DECK",
     subtitle: "AGENT NAVIGATION",
-    objective: "Design an environment and train ARIA to find the optimal path.",
+    objective: "Design an environment and train ARIA to navigate from START to the GOAL star.",
     concept: "Reinforcement Learning",
     color: "#f97316",
+    steps: [
+      "Click empty tiles to place ⛽ fuel cells (+1 reward) — click again for ☄️ asteroids (-1 penalty)",
+      "Hit DEPLOY EPISODE to watch ARIA navigate the grid, learning from rewards and penalties",
+      "Run at least 3 episodes, then click COMPLETE — ARIA learns a better path each time!",
+    ],
   },
 };
 
@@ -82,6 +97,32 @@ export default function MissionBriefing({ missionId, onStart }) {
           <div style={{ fontSize: "0.95rem", lineHeight: 1.6, color: "#e2e8f0" }}>
             {info.objective}
           </div>
+        </div>
+        <div style={{
+          background: "rgba(255,255,255,0.03)",
+          border: "1px solid rgba(255,255,255,0.08)",
+          borderRadius: "12px",
+          padding: "20px",
+          marginBottom: "24px",
+          textAlign: "left",
+        }}>
+          <div style={{ fontSize: "0.65rem", color: info.color, fontWeight: 700, letterSpacing: "0.15em", marginBottom: "12px" }}>
+            HOW TO PLAY
+          </div>
+          {info.steps.map((step, i) => (
+            <div key={i} style={{
+              display: "flex", gap: "10px", alignItems: "flex-start",
+              marginBottom: i < info.steps.length - 1 ? "10px" : 0,
+            }}>
+              <div style={{
+                minWidth: "22px", height: "22px", borderRadius: "50%",
+                background: `${info.color}33`, border: `1px solid ${info.color}66`,
+                display: "flex", alignItems: "center", justifyContent: "center",
+                fontSize: "0.65rem", fontWeight: 800, color: info.color,
+              }}>{i + 1}</div>
+              <div style={{ fontSize: "0.85rem", lineHeight: 1.5, color: "#cbd5e1" }}>{step}</div>
+            </div>
+          ))}
         </div>
         <div style={{
           display: "inline-block",

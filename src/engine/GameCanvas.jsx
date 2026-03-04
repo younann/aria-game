@@ -6,6 +6,7 @@ export default function GameCanvas({ onAppReady, width = 960, height = 640 }) {
   const appRef = useRef(null);
 
   useEffect(() => {
+    let mounted = true;
     const app = new Application();
     const init = async () => {
       await app.init({
@@ -16,6 +17,10 @@ export default function GameCanvas({ onAppReady, width = 960, height = 640 }) {
         resolution: window.devicePixelRatio || 1,
         autoDensity: true,
       });
+      if (!mounted || !canvasRef.current) {
+        app.destroy(true);
+        return;
+      }
       canvasRef.current.appendChild(app.canvas);
       appRef.current = app;
       if (onAppReady) onAppReady(app);
@@ -23,6 +28,7 @@ export default function GameCanvas({ onAppReady, width = 960, height = 640 }) {
     init();
 
     return () => {
+      mounted = false;
       if (appRef.current) {
         appRef.current.destroy(true, { children: true });
         appRef.current = null;

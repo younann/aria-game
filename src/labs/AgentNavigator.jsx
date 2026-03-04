@@ -186,10 +186,22 @@ export default function AgentNavigator({ onComplete }) {
       </div>
 
       <div style={{
-        display: "flex", gap: "20px", fontSize: "0.75rem", color: "#94a3b8",
-        padding: "12px", background: "rgba(255,255,255,0.02)", borderRadius: "8px",
+        padding: "16px",
+        background: "rgba(249,115,22,0.08)",
+        border: "1px solid rgba(249,115,22,0.2)",
+        borderRadius: "10px",
+        fontSize: "0.8rem", color: "#94a3b8", lineHeight: 1.6,
       }}>
-        <span>Click tiles: Empty → ⛽ Fuel (+1) → ☄️ Asteroid (-1) → Empty</span>
+        <strong style={{ color: "#fb923c" }}>HOW IT WORKS:</strong>
+        <div style={{ display: "flex", gap: "16px", flexWrap: "wrap", marginTop: "8px" }}>
+          <span>🚀 ARIA starts here</span>
+          <span>⭐ Goal — big reward!</span>
+          <span>⛽ Fuel cell (+1 reward)</span>
+          <span>☄️ Asteroid (-1 penalty)</span>
+        </div>
+        <div style={{ marginTop: "8px", color: "#64748b" }}>
+          Click tiles to cycle: empty → ⛽ → ☄️ → empty. Place items, then hit DEPLOY to watch ARIA learn!
+        </div>
       </div>
     </div>
   );

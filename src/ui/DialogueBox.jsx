@@ -17,6 +17,13 @@ export default function DialogueBox({ dialogue, onComplete }) {
 
   const currentLine = dialogue?.[lineIndex];
 
+  // Reset line index when dialogue changes (e.g., branching choices)
+  useEffect(() => {
+    setLineIndex(0);
+    setDisplayedText("");
+    setIsTyping(true);
+  }, [dialogue]);
+
   useEffect(() => {
     if (!currentLine) return;
     setDisplayedText("");

@@ -195,6 +195,16 @@ export default function SynapticWiring({ onComplete }) {
       >
         {output > 0.7 ? "ACTIVATE NEURAL CORE" : "OUTPUT MUST EXCEED 70%"}
       </button>
+
+      <div style={{
+        marginTop: "24px", padding: "16px",
+        background: "rgba(139,92,246,0.08)",
+        border: "1px solid rgba(139,92,246,0.2)",
+        borderRadius: "10px",
+        fontSize: "0.8rem", color: "#94a3b8", lineHeight: 1.5,
+      }}>
+        <strong style={{ color: "#c4b5fd" }}>ARIA HINT:</strong> Increase the weights to strengthen connections. Positive weights activate the neuron, negative weights inhibit it. Try pushing Weight 1 and Bias higher!
+      </div>
     </div>
   );
 }
