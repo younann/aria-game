@@ -30,6 +30,7 @@ export default function App() {
   const pixiAppRef = useRef(null);
   const hubContainerRef = useRef(null);
   const [pixiReadyCounter, setPixiReadyCounter] = useState(0);
+  const [codexOpen, setCodexOpen] = useState(false);
 
   // Watch for new achievements
   const prevAchievements = useRef(state.achievements.length);
@@ -168,7 +169,7 @@ export default function App() {
       padding: "24px",
     }}>
       {/* HUD - always visible except during bridge intro */}
-      {phase !== "bridge_intro" && <HUD />}
+      {phase !== "bridge_intro" && <HUD onOpenCodex={() => setCodexOpen(true)} />}
 
       {/* Achievement Popup */}
       <AchievementPopup

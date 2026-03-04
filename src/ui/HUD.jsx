@@ -2,7 +2,16 @@ import React from "react";
 import { motion } from "framer-motion";
 import { useGame, RANKS } from "../systems/GameState";
 
-export default function HUD() {
+const MAX_STARS = 54; // 6 missions x 3 levels x 3 max stars
+
+function getAriaHealthGradient(health) {
+  if (health <= 25) return "linear-gradient(90deg, #f43f5e, #fb923c)";
+  if (health <= 50) return "linear-gradient(90deg, #fb923c, #eab308)";
+  if (health <= 75) return "linear-gradient(90deg, #06b6d4, #22d3ee)";
+  return "linear-gradient(90deg, #10b981, #34d399)";
+}
+
+export default function HUD({ onOpenCodex }) {
   const { state } = useGame();
   const currentRankIndex = RANKS.findIndex(r => r.name === state.rank);
   const nextRank = RANKS[currentRankIndex + 1];
@@ -18,6 +27,7 @@ export default function HUD() {
       background: "linear-gradient(180deg, rgba(5,5,16,0.95) 0%, transparent 100%)",
       zIndex: 100, pointerEvents: "none",
     }}>
+      {/* Rank badge */}
       <div style={{
         background: "rgba(139,92,246,0.2)",
         border: "2px solid #8b5cf6",
@@ -32,6 +42,8 @@ export default function HUD() {
       }}>
         {state.rank}
       </div>
+
+      {/* Stars progress bar (rank progression) */}
       <div style={{ flex: 1, maxWidth: "300px" }}>
         <div style={{
           display: "flex", justifyContent: "space-between",
@@ -56,6 +68,20 @@ export default function HUD() {
           />
         </div>
       </div>
+
+      {/* Total stars counter */}
+      <div style={{
+        fontSize: "0.85rem",
+        fontWeight: 800,
+        color: "#fbbf24",
+        letterSpacing: "0.05em",
+        whiteSpace: "nowrap",
+        pointerEvents: "auto",
+      }}>
+        <span style={{ fontSize: "1rem" }}>{"\u2605"}</span> {state.totalStars}/{MAX_STARS}
+      </div>
+
+      {/* ARIA health bar */}
       <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
         <span style={{ fontSize: "0.65rem", color: "#94a3b8", letterSpacing: "0.1em" }}>ARIA</span>
         <div style={{
@@ -69,9 +95,7 @@ export default function HUD() {
             transition={{ type: "spring", damping: 20 }}
             style={{
               height: "100%",
-              background: state.ariaHealth > 50
-                ? "linear-gradient(90deg, #10b981, #34d399)"
-                : "linear-gradient(90deg, #f43f5e, #fb923c)",
+              background: getAriaHealthGradient(state.ariaHealth),
               borderRadius: "4px",
             }}
           />
@@ -80,6 +104,8 @@ export default function HUD() {
           {state.ariaHealth}%
         </span>
       </div>
+
+      {/* Badges count */}
       <div style={{
         fontSize: "0.7rem", color: "#fbbf24",
         fontWeight: 700, letterSpacing: "0.1em",
@@ -87,6 +113,35 @@ export default function HUD() {
       }}>
         {state.achievements.length} BADGES
       </div>
+
+      {/* Codex button */}
+      <button
+        onClick={onOpenCodex}
+        style={{
+          background: "rgba(6,182,212,0.15)",
+          border: "2px solid #06b6d4",
+          borderRadius: "8px",
+          padding: "6px 14px",
+          fontSize: "0.75rem",
+          fontWeight: 800,
+          letterSpacing: "0.1em",
+          color: "#22d3ee",
+          cursor: "pointer",
+          pointerEvents: "auto",
+          transition: "background 0.2s, transform 0.1s",
+          whiteSpace: "nowrap",
+        }}
+        onMouseEnter={(e) => {
+          e.currentTarget.style.background = "rgba(6,182,212,0.3)";
+          e.currentTarget.style.transform = "scale(1.05)";
+        }}
+        onMouseLeave={(e) => {
+          e.currentTarget.style.background = "rgba(6,182,212,0.15)";
+          e.currentTarget.style.transform = "scale(1)";
+        }}
+      >
+        {"\uD83D\uDCD6"} CODEX
+      </button>
     </div>
   );
 }
