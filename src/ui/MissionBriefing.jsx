@@ -1,48 +1,23 @@
 import React from "react";
 import { motion } from "framer-motion";
+import { MISSIONS } from "../systems/MissionConfig";
 
-const MISSION_INFO = {
-  datavault: {
-    title: "DATA VAULT",
-    subtitle: "SIGNAL CLASSIFICATION",
-    objective: "Classify incoming alien signals as FRIENDLY or HOSTILE to restore ARIA's pattern recognition.",
-    concept: "Supervised Learning",
-    color: "#10b981",
-    steps: [
-      "Each signal shows a waveform, frequency (LOW/HIGH), and pattern (REPEATING/CHAOTIC)",
-      "Click FRIENDLY or HOSTILE to classify it — friendly signals are LOW frequency + REPEATING pattern",
-      "Build streaks of correct answers for bonus XP!",
-    ],
-  },
-  neuralcore: {
-    title: "NEURAL CORE",
-    subtitle: "SYNAPTIC REWIRING",
-    objective: "Adjust ARIA's synaptic weights to restore her decision-making circuits.",
-    concept: "Neural Networks",
-    color: "#8b5cf6",
-    steps: [
-      "Drag the 3 weight sliders to adjust how much each input matters",
-      "Watch the output percentage change in real-time — get it above 70%",
-      "Click ACTIVATE NEURAL CORE when the output is high enough",
-    ],
-  },
-  simdeck: {
-    title: "SIMULATION DECK",
-    subtitle: "AGENT NAVIGATION",
-    objective: "Design an environment and train ARIA to navigate from START to the GOAL star.",
-    concept: "Reinforcement Learning",
-    color: "#f97316",
-    steps: [
-      "Click empty tiles to place ⛽ fuel cells (+1 reward) — click again for ☄️ asteroids (-1 penalty)",
-      "Hit DEPLOY EPISODE to watch ARIA navigate the grid, learning from rewards and penalties",
-      "Run at least 3 episodes, then click COMPLETE — ARIA learns a better path each time!",
-    ],
-  },
+const LEVEL_LABELS = {
+  1: "TUTORIAL",
+  2: "CHALLENGE",
+  3: "MASTERY",
 };
 
-export default function MissionBriefing({ missionId, onStart }) {
-  const info = MISSION_INFO[missionId];
-  if (!info) return null;
+export default function MissionBriefing({ missionId, level = 1, onStart }) {
+  const mission = MISSIONS[missionId];
+  if (!mission) return null;
+
+  const levelData = mission.levels[level];
+  if (!levelData) return null;
+
+  const { color, title, subtitle, concept } = mission;
+  const { briefingSteps, starThresholds } = levelData;
+  const levelLabel = LEVEL_LABELS[level] || `LEVEL ${level}`;
 
   return (
     <motion.div
@@ -57,16 +32,32 @@ export default function MissionBriefing({ missionId, onStart }) {
     >
       <div style={{
         background: "rgba(15,23,42,0.95)",
-        border: `2px solid ${info.color}`,
+        border: `2px solid ${color}`,
         borderRadius: "20px",
         padding: "48px",
         maxWidth: "550px",
         width: "90vw",
         textAlign: "center",
       }}>
+        {/* Level indicator */}
+        <div style={{
+          display: "inline-block",
+          background: `${color}18`,
+          border: `1px solid ${color}44`,
+          borderRadius: "6px",
+          padding: "4px 14px",
+          fontSize: "0.6rem",
+          fontWeight: 800,
+          color,
+          letterSpacing: "0.2em",
+          marginBottom: "16px",
+        }}>
+          LEVEL {level}: {levelLabel}
+        </div>
+
         <div style={{
           fontSize: "0.65rem", fontWeight: 800,
-          color: info.color, letterSpacing: "0.25em",
+          color, letterSpacing: "0.25em",
           marginBottom: "8px",
         }}>
           MISSION BRIEFING
@@ -75,14 +66,16 @@ export default function MissionBriefing({ missionId, onStart }) {
           fontSize: "2rem", fontWeight: 900,
           marginBottom: "4px", color: "#f8fafc",
         }}>
-          {info.title}
+          {title}
         </h2>
         <div style={{
           fontSize: "0.8rem", color: "#64748b",
           letterSpacing: "0.15em", marginBottom: "32px",
         }}>
-          {info.subtitle}
+          {subtitle}
         </div>
+
+        {/* Objective section */}
         <div style={{
           background: "rgba(255,255,255,0.03)",
           border: "1px solid rgba(255,255,255,0.08)",
@@ -95,9 +88,11 @@ export default function MissionBriefing({ missionId, onStart }) {
             OBJECTIVE
           </div>
           <div style={{ fontSize: "0.95rem", lineHeight: 1.6, color: "#e2e8f0" }}>
-            {info.objective}
+            {levelData.description}
           </div>
         </div>
+
+        {/* How to play — briefing steps */}
         <div style={{
           background: "rgba(255,255,255,0.03)",
           border: "1px solid rgba(255,255,255,0.08)",
@@ -106,38 +101,77 @@ export default function MissionBriefing({ missionId, onStart }) {
           marginBottom: "24px",
           textAlign: "left",
         }}>
-          <div style={{ fontSize: "0.65rem", color: info.color, fontWeight: 700, letterSpacing: "0.15em", marginBottom: "12px" }}>
+          <div style={{ fontSize: "0.65rem", color, fontWeight: 700, letterSpacing: "0.15em", marginBottom: "12px" }}>
             HOW TO PLAY
           </div>
-          {info.steps.map((step, i) => (
+          {briefingSteps.map((step, i) => (
             <div key={i} style={{
               display: "flex", gap: "10px", alignItems: "flex-start",
-              marginBottom: i < info.steps.length - 1 ? "10px" : 0,
+              marginBottom: i < briefingSteps.length - 1 ? "10px" : 0,
             }}>
               <div style={{
                 minWidth: "22px", height: "22px", borderRadius: "50%",
-                background: `${info.color}33`, border: `1px solid ${info.color}66`,
+                background: `${color}33`, border: `1px solid ${color}66`,
                 display: "flex", alignItems: "center", justifyContent: "center",
-                fontSize: "0.65rem", fontWeight: 800, color: info.color,
+                fontSize: "0.65rem", fontWeight: 800, color,
               }}>{i + 1}</div>
               <div style={{ fontSize: "0.85rem", lineHeight: 1.5, color: "#cbd5e1" }}>{step}</div>
             </div>
           ))}
         </div>
+
+        {/* Star thresholds */}
+        <div style={{
+          background: "rgba(255,255,255,0.03)",
+          border: "1px solid rgba(255,255,255,0.08)",
+          borderRadius: "12px",
+          padding: "16px 20px",
+          marginBottom: "24px",
+          display: "flex",
+          justifyContent: "center",
+          gap: "24px",
+        }}>
+          {[1, 2, 3].map((stars) => (
+            <div key={stars} style={{
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              gap: "4px",
+            }}>
+              <div style={{
+                fontSize: "1.1rem",
+                lineHeight: 1,
+                filter: "drop-shadow(0 0 4px rgba(250,204,21,0.4))",
+              }}>
+                {"\u2605".repeat(stars)}
+              </div>
+              <div style={{
+                fontSize: "0.75rem",
+                fontWeight: 700,
+                color: "#94a3b8",
+              }}>
+                {starThresholds[stars]}%
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* AI concept badge */}
         <div style={{
           display: "inline-block",
-          background: `${info.color}22`,
-          border: `1px solid ${info.color}66`,
+          background: `${color}22`,
+          border: `1px solid ${color}66`,
           borderRadius: "20px",
           padding: "6px 16px",
           fontSize: "0.7rem",
           fontWeight: 700,
-          color: info.color,
+          color,
           letterSpacing: "0.1em",
           marginBottom: "32px",
         }}>
-          AI CONCEPT: {info.concept}
+          AI CONCEPT: {concept}
         </div>
+
         <div>
           <button
             onClick={onStart}
@@ -145,7 +179,7 @@ export default function MissionBriefing({ missionId, onStart }) {
               padding: "16px 48px",
               fontSize: "1rem",
               fontWeight: 800,
-              background: info.color,
+              background: color,
               border: "none",
               borderRadius: "8px",
               color: "white",
