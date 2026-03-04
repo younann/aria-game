@@ -6,9 +6,9 @@ export default function HUD() {
   const { state } = useGame();
   const currentRankIndex = RANKS.findIndex(r => r.name === state.rank);
   const nextRank = RANKS[currentRankIndex + 1];
-  const prevXp = RANKS[currentRankIndex]?.xp || 0;
-  const nextXp = nextRank?.xp || state.xp;
-  const progress = nextRank ? (state.xp - prevXp) / (nextXp - prevXp) : 1;
+  const prevStars = RANKS[currentRankIndex]?.stars || 0;
+  const nextStars = nextRank?.stars || state.totalStars;
+  const progress = nextRank ? (state.totalStars - prevStars) / (nextStars - prevStars) : 1;
 
   return (
     <div style={{
@@ -37,8 +37,8 @@ export default function HUD() {
           display: "flex", justifyContent: "space-between",
           fontSize: "0.65rem", color: "#94a3b8", marginBottom: "4px",
         }}>
-          <span>XP</span>
-          <span>{state.xp} {nextRank ? `/ ${nextXp}` : "(MAX)"}</span>
+          <span>STARS</span>
+          <span>{state.totalStars} {nextRank ? `/ ${nextStars}` : "(MAX)"}</span>
         </div>
         <div style={{
           height: "8px", background: "rgba(255,255,255,0.08)",
