@@ -2,9 +2,11 @@ import React from "react";
 import { motion } from "framer-motion";
 import { MISSIONS, CONCEPT_CARDS } from "../systems/MissionConfig";
 import { useI18n } from "../systems/I18nContext";
+import useViewport from "../hooks/useViewport";
 
 export default function MissionBriefing({ missionId, level = 1, onStart }) {
   const { t } = useI18n();
+  const { isMobile } = useViewport();
   const mission = MISSIONS[missionId];
   if (!mission) return null;
 
@@ -31,23 +33,26 @@ export default function MissionBriefing({ missionId, level = 1, onStart }) {
 
   return (
     <motion.div
-      initial={{ opacity: 0, scale: 0.95 }}
-      animate={{ opacity: 1, scale: 1 }}
+      initial={{ opacity: 0, y: isMobile ? 20 : 0, scale: isMobile ? 1 : 0.95 }}
+      animate={{ opacity: 1, y: 0, scale: 1 }}
       style={{
         position: "fixed", inset: 0,
-        display: "flex", alignItems: "center", justifyContent: "center",
+        display: "flex", alignItems: isMobile ? "stretch" : "center", justifyContent: "center",
         background: "rgba(5,5,16,0.9)",
         zIndex: 180,
+        overflowY: isMobile ? "auto" : "visible",
+        WebkitOverflowScrolling: "touch",
       }}
     >
       <div style={{
-        background: "rgba(15,23,42,0.95)",
-        border: `2px solid ${color}`,
-        borderRadius: "20px",
-        padding: "48px",
-        maxWidth: "550px",
-        width: "90vw",
+        background: isMobile ? "rgba(15,23,42,1)" : "rgba(15,23,42,0.95)",
+        border: isMobile ? "none" : `2px solid ${color}`,
+        borderRadius: isMobile ? "0" : "20px",
+        padding: isMobile ? "24px 20px 32px" : "48px",
+        maxWidth: isMobile ? "100%" : "550px",
+        width: isMobile ? "100%" : "90vw",
         textAlign: "center",
+        minHeight: isMobile ? "100%" : "auto",
       }}>
         {/* Level indicator */}
         <div style={{

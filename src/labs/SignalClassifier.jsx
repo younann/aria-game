@@ -5,6 +5,7 @@ import { useI18n } from "../systems/I18nContext";
 import { playSound } from "../systems/SoundManager";
 import { MISSIONS, CONCEPT_CARDS } from "../systems/MissionConfig";
 import AriaInsight from "../ui/AriaInsight";
+import useViewport from "../hooks/useViewport";
 
 /* ───────────────────────────── signal generation ───────────────────────────── */
 
@@ -93,7 +94,7 @@ function WaveformDisplay({ signal }) {
   }).join(" ");
 
   return (
-    <svg width="480" height="100" style={{ overflow: "visible" }}>
+    <svg viewBox="0 0 480 100" width="100%" style={{ overflow: "visible" }}>
       <polyline
         points={points}
         fill="none"
@@ -167,6 +168,7 @@ function getCardsForLevel(level) {
 export default function SignalClassifier({ level = 1, onComplete }) {
   const { dispatch } = useGame();
   const { t } = useI18n();
+  const { isMobile } = useViewport();
 
   const levelConfig = MISSIONS.datavault.levels[level];
   const signalCount = levelConfig.signalCount;
@@ -368,7 +370,7 @@ export default function SignalClassifier({ level = 1, onComplete }) {
     const awardedCards = getCardsForLevel(level);
 
     return (
-      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} style={{ padding: "48px", textAlign: "center" }}>
+      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} style={{ padding: isMobile ? "24px 16px" : "48px", textAlign: "center" }}>
         <div style={{ fontSize: "4rem", marginBottom: "16px" }}>📡</div>
         <h2 style={{ fontSize: "1.8rem", fontWeight: 900, marginBottom: "8px", color: "#f8fafc" }}>
           {t("labs.classifier.complete")}
@@ -444,8 +446,8 @@ export default function SignalClassifier({ level = 1, onComplete }) {
   const signal = signals[index];
 
   return (
-    <div style={{ padding: "32px" }}>
-      <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "16px" }}>
+    <div style={{ padding: isMobile ? "16px" : "32px" }}>
+      <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "16px", flexWrap: "wrap", gap: "8px" }}>
         <div>
           <h3 style={{ fontSize: "1.1rem", fontWeight: 800, letterSpacing: "0.1em", color: "#f8fafc" }}>
             {t("labs.classifier.title")}
@@ -510,11 +512,11 @@ export default function SignalClassifier({ level = 1, onComplete }) {
         </motion.div>
       </AnimatePresence>
 
-      <div style={{ display: "flex", gap: "16px" }}>
+      <div style={{ display: "flex", flexDirection: isMobile ? "column" : "row", gap: isMobile ? "10px" : "16px" }}>
         <button
           onClick={() => handleClassify("FRIENDLY")}
           style={{
-            flex: 1, padding: "20px", background: "rgba(16,185,129,0.15)",
+            flex: 1, padding: isMobile ? "16px" : "20px", background: "rgba(16,185,129,0.15)",
             border: "2px solid #10b981", borderRadius: "12px", color: "#10b981",
             fontSize: "1rem", fontWeight: 800, cursor: "pointer", letterSpacing: "0.15em",
           }}
@@ -524,7 +526,7 @@ export default function SignalClassifier({ level = 1, onComplete }) {
         <button
           onClick={() => handleClassify("HOSTILE")}
           style={{
-            flex: 1, padding: "20px", background: "rgba(244,63,94,0.15)",
+            flex: 1, padding: isMobile ? "16px" : "20px", background: "rgba(244,63,94,0.15)",
             border: "2px solid #f43f5e", borderRadius: "12px", color: "#f43f5e",
             fontSize: "1rem", fontWeight: 800, cursor: "pointer", letterSpacing: "0.15em",
           }}

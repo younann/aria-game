@@ -5,6 +5,7 @@ import { playSound } from "../systems/SoundManager";
 import { MISSIONS, CONCEPT_CARDS } from "../systems/MissionConfig";
 import AriaInsight from "../ui/AriaInsight";
 import { useI18n } from "../systems/I18nContext";
+import useViewport from "../hooks/useViewport";
 
 /* -- Pre-placed grid for L1 Tutorial -------------------------------- */
 function generatePrePlacedGrid(size) {
@@ -69,6 +70,7 @@ function getConceptCardsForLevel(level) {
 export default function AgentNavigator({ level = 1, onComplete }) {
   const { dispatch } = useGame();
   const { t } = useI18n();
+  const { isMobile } = useViewport();
 
   const levelConfig = MISSIONS.simdeck.levels[level];
   const SIZE = levelConfig.gridSize;
@@ -261,7 +263,7 @@ export default function AgentNavigator({ level = 1, onComplete }) {
     return (
       <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }}
         transition={{ duration: 0.5, ease: "easeOut" }}
-        style={{ padding: "48px", textAlign: "center" }}
+        style={{ padding: isMobile ? "24px 16px" : "48px", textAlign: "center" }}
       >
         <div style={{ fontSize: "4rem", marginBottom: "16px" }}>🚀</div>
         <h2 style={{ fontSize: "1.8rem", fontWeight: 900, color: "#f8fafc", marginBottom: "8px" }}>
@@ -351,8 +353,8 @@ export default function AgentNavigator({ level = 1, onComplete }) {
   /* ═══════════════════════════ GAMEPLAY SCREEN ═══════════════════════════════ */
 
   return (
-    <div style={{ padding: "32px" }}>
-      <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "24px", alignItems: "flex-start" }}>
+    <div style={{ padding: isMobile ? "16px" : "32px" }}>
+      <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "24px", alignItems: "flex-start", flexWrap: "wrap", gap: "8px" }}>
         <div>
           <h3 style={{ fontSize: "1.1rem", fontWeight: 800, letterSpacing: "0.1em", margin: 0 }}>
             {t("labs.navigator.title")}

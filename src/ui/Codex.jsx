@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useGame } from "../systems/GameState";
 import { MISSIONS, CONCEPT_CARDS } from "../systems/MissionConfig";
 import { useI18n } from "../systems/I18nContext";
+import useViewport from "../hooks/useViewport";
 
 const RARITY_COLORS = {
   common: "#ffffff",
@@ -162,6 +163,7 @@ function ExpandedCard({ card, onClose, t }) {
 export default function Codex({ isOpen, onClose }) {
   const { state } = useGame();
   const { t } = useI18n();
+  const { isMobile } = useViewport();
   const [selectedCard, setSelectedCard] = useState(null);
 
   const collectedIds = new Set(state.codex.map((c) => c.id));
@@ -198,7 +200,7 @@ export default function Codex({ isOpen, onClose }) {
           {/* Panel */}
           <motion.div
             key="codex-panel"
-            initial={{ x: "100%" }}
+            initial={isMobile ? { x: "100%" } : { x: "100%" }}
             animate={{ x: 0 }}
             exit={{ x: "100%" }}
             transition={{ type: "spring", damping: 28, stiffness: 300 }}
@@ -207,13 +209,14 @@ export default function Codex({ isOpen, onClose }) {
               top: 0,
               right: 0,
               bottom: 0,
-              width: "min(420px, 90vw)",
+              left: isMobile ? 0 : "auto",
+              width: isMobile ? "100%" : "min(420px, 90vw)",
               background: "rgba(5,5,16,0.98)",
               zIndex: 200,
               display: "flex",
               flexDirection: "column",
-              borderLeft: "1px solid rgba(255,255,255,0.08)",
-              boxShadow: "-8px 0 40px rgba(0,0,0,0.5)",
+              borderLeft: isMobile ? "none" : "1px solid rgba(255,255,255,0.08)",
+              boxShadow: isMobile ? "none" : "-8px 0 40px rgba(0,0,0,0.5)",
             }}
           >
             {/* Header */}
@@ -244,12 +247,13 @@ export default function Codex({ isOpen, onClose }) {
                     borderRadius: "8px",
                     color: "#94a3b8",
                     fontSize: "1rem",
-                    width: "32px",
-                    height: "32px",
+                    width: isMobile ? "44px" : "32px",
+                    height: isMobile ? "44px" : "32px",
                     cursor: "pointer",
                     display: "flex",
                     alignItems: "center",
                     justifyContent: "center",
+                    padding: 0,
                   }}
                 >
                   X

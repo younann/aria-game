@@ -3,6 +3,7 @@ import { motion } from "framer-motion";
 import { MISSIONS } from "../systems/MissionConfig.js";
 import { useGame } from "../systems/GameState.jsx";
 import { useI18n } from "../systems/I18nContext";
+import useViewport from "../hooks/useViewport";
 import StarRating from "./StarRating.jsx";
 
 const LEVEL_BADGES = { 1: "I", 2: "II", 3: "III" };
@@ -15,6 +16,7 @@ function isLevelUnlocked(levelNum, levelCompleteMap) {
 export default function LevelSelect({ missionId, onSelectLevel, onBack }) {
   const { state } = useGame();
   const { t, dir } = useI18n();
+  const { isMobile } = useViewport();
   const mission = MISSIONS[missionId];
   if (!mission) return null;
 
@@ -24,27 +26,30 @@ export default function LevelSelect({ missionId, onSelectLevel, onBack }) {
 
   return (
     <motion.div
-      initial={{ opacity: 0, scale: 0.95 }}
-      animate={{ opacity: 1, scale: 1 }}
+      initial={{ opacity: 0, y: isMobile ? 20 : 0, scale: isMobile ? 1 : 0.95 }}
+      animate={{ opacity: 1, y: 0, scale: 1 }}
       style={{
         position: "fixed",
         inset: 0,
         display: "flex",
-        alignItems: "center",
+        alignItems: isMobile ? "stretch" : "center",
         justifyContent: "center",
         background: "rgba(5,5,16,0.92)",
         zIndex: 180,
+        overflowY: isMobile ? "auto" : "visible",
+        WebkitOverflowScrolling: "touch",
       }}
     >
       <div
         style={{
-          background: "rgba(15,23,42,0.95)",
-          border: `2px solid ${color}`,
-          borderRadius: "20px",
-          padding: "40px 36px 32px",
-          maxWidth: "680px",
-          width: "92vw",
+          background: isMobile ? "rgba(15,23,42,1)" : "rgba(15,23,42,0.95)",
+          border: isMobile ? "none" : `2px solid ${color}`,
+          borderRadius: isMobile ? "0" : "20px",
+          padding: isMobile ? "24px 16px 32px" : "40px 36px 32px",
+          maxWidth: isMobile ? "100%" : "680px",
+          width: isMobile ? "100%" : "92vw",
           textAlign: "center",
+          minHeight: isMobile ? "100%" : "auto",
         }}
       >
         {/* Mission header */}
@@ -126,7 +131,7 @@ export default function LevelSelect({ missionId, onSelectLevel, onBack }) {
                   }`,
                   borderRadius: "14px",
                   padding: "22px 18px 18px",
-                  width: "175px",
+                  width: isMobile ? "100%" : "175px",
                   cursor: unlocked ? "pointer" : "default",
                   opacity: unlocked ? 1 : 0.4,
                   transition: "border-color 0.2s",

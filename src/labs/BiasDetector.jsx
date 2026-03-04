@@ -5,6 +5,7 @@ import { playSound } from "../systems/SoundManager";
 import { MISSIONS, CONCEPT_CARDS } from "../systems/MissionConfig";
 import { useI18n } from "../systems/I18nContext";
 import AriaInsight from "../ui/AriaInsight";
+import useViewport from "../hooks/useViewport";
 
 /* ── Constants ─────────────────────────────────────────────────── */
 
@@ -247,6 +248,7 @@ function StarDisplay({ stars }) {
 export default function BiasDetector({ level = 1, onComplete }) {
   const { dispatch } = useGame();
   const { t } = useI18n();
+  const { isMobile } = useViewport();
   const levelConfig = MISSIONS.ethicschamber.levels[level];
   const { starThresholds } = levelConfig;
 
@@ -436,7 +438,7 @@ export default function BiasDetector({ level = 1, onComplete }) {
     const awardedCards = getCardsForLevel(level);
 
     return (
-      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} style={{ padding: "48px", textAlign: "center" }}>
+      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} style={{ padding: isMobile ? "24px 16px" : "48px", textAlign: "center" }}>
         <div style={{ fontSize: "4rem", marginBottom: "16px" }}>{"\u2696\uFE0F"}</div>
         <h2 style={{ fontSize: "1.8rem", fontWeight: 900, marginBottom: "8px", color: "#f8fafc" }}>
           {t(`labs.bias.complete.${level}`)}
@@ -516,8 +518,8 @@ export default function BiasDetector({ level = 1, onComplete }) {
 
   if (level === 3) {
     return (
-      <div style={{ padding: "32px" }}>
-        <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "24px" }}>
+      <div style={{ padding: isMobile ? "16px" : "32px" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "24px", flexWrap: "wrap", gap: "8px" }}>
           <div>
             <h3 style={{ fontSize: "1.1rem", fontWeight: 800, letterSpacing: "0.1em", color: "#f8fafc" }}>
               {t("labs.bias.fairnessCalibration")}
@@ -589,9 +591,9 @@ export default function BiasDetector({ level = 1, onComplete }) {
   const showDecisions = level === 2 ? filteredDecisions : decisions;
 
   return (
-    <div style={{ padding: "32px" }}>
+    <div style={{ padding: isMobile ? "16px" : "32px" }}>
       {/* Header */}
-      <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "16px" }}>
+      <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "16px", flexWrap: "wrap", gap: "8px" }}>
         <div>
           <h3 style={{ fontSize: "1.1rem", fontWeight: 800, letterSpacing: "0.1em", color: "#f8fafc" }}>
             BIAS AUDIT
@@ -639,6 +641,8 @@ export default function BiasDetector({ level = 1, onComplete }) {
         background: "rgba(0,0,0,0.3)", borderRadius: "12px",
         overflow: "hidden", marginBottom: "24px",
         border: "1px solid rgba(255,255,255,0.06)",
+        overflowX: isMobile ? "auto" : "visible",
+        WebkitOverflowScrolling: "touch",
       }}>
         {/* Table header */}
         <div style={{
@@ -646,6 +650,7 @@ export default function BiasDetector({ level = 1, onComplete }) {
           padding: "10px 16px", background: "rgba(255,255,255,0.03)",
           borderBottom: "1px solid rgba(255,255,255,0.06)",
           fontSize: "0.6rem", fontWeight: 700, color: "#64748b", letterSpacing: "0.1em",
+          minWidth: isMobile ? "500px" : "auto",
         }}>
           <span>NAME</span>
           <span>DEPARTMENT</span>
@@ -675,6 +680,7 @@ export default function BiasDetector({ level = 1, onComplete }) {
                 style={{
                   display: "grid", gridTemplateColumns: "2fr 1.5fr 1fr 1fr 1fr",
                   padding: "10px 16px", fontSize: "0.75rem", color: "#e2e8f0",
+                  minWidth: isMobile ? "500px" : "auto",
                   borderBottom: "1px solid rgba(255,255,255,0.03)",
                   background: rowBg,
                   cursor: submitted ? "default" : "pointer",

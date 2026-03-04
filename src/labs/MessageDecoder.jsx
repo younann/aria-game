@@ -5,6 +5,7 @@ import { playSound } from "../systems/SoundManager";
 import { MISSIONS, CONCEPT_CARDS } from "../systems/MissionConfig";
 import { useI18n } from "../systems/I18nContext";
 import AriaInsight from "../ui/AriaInsight";
+import useViewport from "../hooks/useViewport";
 
 /* ── Message bank ──────────────────────────────────────────────── */
 
@@ -170,6 +171,7 @@ function StarDisplay({ earned, total = 3 }) {
 export default function MessageDecoder({ level = 1, onComplete }) {
   const { dispatch } = useGame();
   const { t } = useI18n();
+  const { isMobile } = useViewport();
   const levelConfig = MISSIONS.commsarray.levels[level];
   const { messageCount, categories, starThresholds } = levelConfig;
 
@@ -275,7 +277,7 @@ export default function MessageDecoder({ level = 1, onComplete }) {
     const awardedCards = getCardsForLevel(level);
 
     return (
-      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} style={{ padding: "48px", textAlign: "center" }}>
+      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} style={{ padding: isMobile ? "24px 16px" : "48px", textAlign: "center" }}>
         <div style={{ fontSize: "4rem", marginBottom: "16px" }}>💬</div>
         <h2 style={{ fontSize: "1.8rem", fontWeight: 900, marginBottom: "8px", color: "#f8fafc" }}>
           {t("labs.decoder.complete")}
@@ -348,9 +350,9 @@ export default function MessageDecoder({ level = 1, onComplete }) {
   const msg = messages[index];
 
   return (
-    <div style={{ padding: "32px" }}>
+    <div style={{ padding: isMobile ? "16px" : "32px" }}>
       {/* Header */}
-      <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "16px" }}>
+      <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "16px", flexWrap: "wrap", gap: "8px" }}>
         <div>
           <h3 style={{ fontSize: "1.1rem", fontWeight: 800, letterSpacing: "0.1em", color: "#f8fafc" }}>
             {t("labs.decoder.title")}
@@ -425,8 +427,8 @@ export default function MessageDecoder({ level = 1, onComplete }) {
       {!feedback && (
         <div style={{
           display: "grid",
-          gridTemplateColumns: categories.length <= 3 ? "repeat(3, 1fr)" : "repeat(2, 1fr)",
-          gap: "12px", marginBottom: "24px",
+          gridTemplateColumns: isMobile ? "repeat(2, 1fr)" : categories.length <= 3 ? "repeat(3, 1fr)" : "repeat(2, 1fr)",
+          gap: isMobile ? "8px" : "12px", marginBottom: "24px",
         }}>
           {categories.map((cat) => {
             const color = CAT_COLORS[cat] || "#94a3b8";

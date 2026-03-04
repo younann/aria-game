@@ -81,7 +81,7 @@ function TypingMessage({ text, delayMs = 1200 }) {
       aria-live="polite"
       aria-label={text}
       style={{
-        maxWidth: "480px",
+        maxWidth: "min(480px, 85vw)",
         textAlign: "center",
         fontSize: "1.05rem",
         lineHeight: 1.6,

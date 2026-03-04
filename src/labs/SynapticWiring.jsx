@@ -5,6 +5,7 @@ import { playSound } from "../systems/SoundManager";
 import { MISSIONS, CONCEPT_CARDS } from "../systems/MissionConfig";
 import AriaInsight from "../ui/AriaInsight";
 import { useI18n } from "../systems/I18nContext";
+import useViewport from "../hooks/useViewport";
 
 /* ---------- Constants ---------- */
 const INPUT_LABELS = ["VISUAL DATA", "MOTION DATA", "AUDIO DATA"];
@@ -89,7 +90,7 @@ function GuideArrow({ visible, direction, t }) {
       animate={{ opacity: [0.4, 1, 0.4] }}
       transition={{ duration: 1.5, repeat: Infinity, ease: "easeInOut" }}
       style={{
-        position: "absolute", right: "-100px", top: "50%",
+        position: "absolute", right: "-100px", top: "50%", display: window.innerWidth < 768 ? "none" : "block",
         transform: "translateY(-50%)", fontSize: "0.7rem",
         color: "#a78bfa", fontWeight: 700, whiteSpace: "nowrap",
         pointerEvents: "none", letterSpacing: "0.05em",
@@ -279,6 +280,7 @@ function StarDisplay({ stars, maxStars = 3 }) {
 export default function SynapticWiring({ level = 1, onComplete }) {
   const { dispatch } = useGame();
   const { t } = useI18n();
+  const { isMobile } = useViewport();
   const levelConfig = MISSIONS.neuralcore.levels[level];
   const { weightCount, hasBias } = levelConfig;
   const target = levelConfig.target || null;
@@ -399,7 +401,7 @@ export default function SynapticWiring({ level = 1, onComplete }) {
 
     return (
       <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}
-        style={{ padding: "48px", textAlign: "center" }}
+        style={{ padding: isMobile ? "24px 16px" : "48px", textAlign: "center" }}
       >
         <motion.div
           animate={{ scale: [1, 1.2, 1], opacity: [0.8, 1, 0.8] }}
@@ -484,8 +486,8 @@ export default function SynapticWiring({ level = 1, onComplete }) {
   /* ═══════════════════════════ MAIN INTERFACE ═══════════════════════════════ */
 
   return (
-    <div style={{ padding: "32px" }}>
-      <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "32px" }}>
+    <div style={{ padding: isMobile ? "16px" : "32px" }}>
+      <div style={{ display: "flex", justifyContent: "space-between", marginBottom: isMobile ? "20px" : "32px", flexWrap: "wrap", gap: "8px" }}>
         <div>
           <h3 style={{ fontSize: "1.1rem", fontWeight: 800, letterSpacing: "0.1em", margin: 0 }}>
             {t("labs.wiring.title")}

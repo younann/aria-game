@@ -5,6 +5,7 @@ import { MISSIONS, CONCEPT_CARDS } from "../systems/MissionConfig";
 import { playSound } from "../systems/SoundManager";
 import { useI18n } from "../systems/I18nContext";
 import AriaInsight from "../ui/AriaInsight";
+import useViewport from "../hooks/useViewport";
 
 // --- Constants ---
 
@@ -224,6 +225,7 @@ const PHASE_COMPLETE = "complete";
 export default function PatternScanner({ level = 1, onComplete }) {
   const { dispatch } = useGame();
   const { t } = useI18n();
+  const { width: vw, isMobile } = useViewport();
   const config = MISSIONS.opticslab.levels[level];
   const { gridSize, noiseLevel, rounds: totalRounds, starThresholds, overlapping } = config;
 
@@ -381,7 +383,7 @@ export default function PatternScanner({ level = 1, onComplete }) {
       <motion.div
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
-        style={{ padding: "48px", textAlign: "center" }}
+        style={{ padding: isMobile ? "24px 16px" : "48px", textAlign: "center" }}
       >
         <motion.div
           animate={{ scale: [1, 1.15, 1], opacity: [0.8, 1, 0.8] }}
@@ -468,10 +470,12 @@ export default function PatternScanner({ level = 1, onComplete }) {
 
   // --- MAIN GAME SCREEN ---
 
-  const cellSize = gridSize <= 4 ? 56 : gridSize <= 6 ? 48 : 42;
+  const pad = isMobile ? 32 : 64;
+  const maxCell = gridSize <= 4 ? 56 : gridSize <= 6 ? 48 : 42;
+  const cellSize = isMobile ? Math.min(maxCell, Math.floor((vw - pad) / gridSize)) : maxCell;
 
   return (
-    <div style={{ padding: "32px" }}>
+    <div style={{ padding: isMobile ? "16px" : "32px" }}>
       {/* Header */}
       <div style={{
         display: "flex",

@@ -6,6 +6,9 @@ import { MISSIONS, UNLOCK_TREE } from "./systems/MissionConfig";
 import { I18nProvider, useI18n } from "./systems/I18nContext";
 import GameCanvas from "./engine/GameCanvas";
 import { buildStationHub } from "./engine/StationHub";
+import StationHubMobile from "./engine/StationHubMobile";
+import BridgeIntroMobile from "./engine/BridgeIntroMobile";
+import useViewport from "./hooks/useViewport";
 import HUD from "./ui/HUD";
 import AchievementPopup from "./ui/AchievementPopup";
 import DialogueBox from "./ui/DialogueBox";
@@ -85,7 +88,10 @@ const LANG_OPTIONS = [
 function AppContent() {
   const { state, dispatch } = useGame();
   const { t, dir } = useI18n();
+  const { width: vw, isMobile } = useViewport();
   const dialogues = useMemo(() => getDialogues(t), [t]);
+  const canvasWidth = isMobile ? vw : Math.min(vw - 32, 960);
+  const canvasHeight = Math.round(canvasWidth * (700 / 960));
   // Phases: name_entry | bridge_intro | hub | level_select | dialogue | briefing | mission | mission_complete_dialogue | complete
   const [phase, setPhase] = useState("name_entry");
   const [currentDialogue, setCurrentDialogue] = useState(null);
@@ -311,8 +317,9 @@ function AppContent() {
       display: "flex",
       flexDirection: "column",
       alignItems: "center",
-      justifyContent: "center",
-      padding: "24px",
+      justifyContent: isMobile ? "flex-start" : "center",
+      padding: isMobile ? "0" : "16px",
+      paddingTop: isMobile ? "56px" : "16px",
     }}>
       {/* HUD - always visible except during intro phases */}
       {phase !== "bridge_intro" && phase !== "name_entry" && <HUD onOpenCodex={() => setCodexOpen(true)} />}
@@ -328,7 +335,7 @@ function AppContent() {
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
-          style={{ textAlign: "center", maxWidth: "500px" }}
+          style={{ textAlign: "center", maxWidth: "500px", width: "100%", padding: isMobile ? "24px 16px" : "0" }}
         >
           <motion.img
             src="/logo.png"
@@ -415,19 +422,19 @@ function AppContent() {
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
-          style={{ textAlign: "center", maxWidth: "700px" }}
+          style={{ textAlign: "center", maxWidth: "700px", width: "100%", padding: isMobile ? "16px" : "0" }}
         >
           <motion.img
             src="/logo.png"
             alt="ARIA — Learn AI, Play & Explore"
             animate={{ scale: [1, 1.03, 1] }}
             transition={{ duration: 4, repeat: Infinity }}
-            style={{ width: "280px", marginBottom: "24px", filter: "drop-shadow(0 0 24px rgba(139,92,246,0.3))" }}
+            style={{ width: isMobile ? "180px" : "280px", marginBottom: "24px", filter: "drop-shadow(0 0 24px rgba(139,92,246,0.3))" }}
           />
-          <p style={{ color: "#94a3b8", fontSize: "1.1rem", lineHeight: 1.7, marginBottom: "40px" }}>
+          <p style={{ color: "#94a3b8", fontSize: isMobile ? "0.95rem" : "1.1rem", lineHeight: 1.7, marginBottom: "40px" }}>
             {t("app.intro")}
           </p>
-          <GameCanvas onAppReady={handlePixiReady} width={960} height={700} />
+          {!isMobile && <GameCanvas onAppReady={handlePixiReady} width={canvasWidth} height={canvasHeight} />}
         </motion.div>
       )}
 
@@ -436,15 +443,25 @@ function AppContent() {
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
-          style={{ textAlign: "center" }}
+          style={{ textAlign: "center", width: "100%" }}
         >
-          <div style={{
-            fontSize: "0.7rem", color: "#64748b", letterSpacing: "0.2em",
-            marginBottom: "16px",
-          }}>
-            {t("app.selectRoom")}
-          </div>
-          <GameCanvas onAppReady={handlePixiReady} width={960} height={700} />
+          {isMobile ? (
+            <StationHubMobile
+              unlockedRooms={state.unlockedRooms}
+              onRoomClick={handleRoomClick}
+              starsData={state.stars || {}}
+            />
+          ) : (
+            <>
+              <div style={{
+                fontSize: "0.7rem", color: "#64748b", letterSpacing: "0.2em",
+                marginBottom: "16px",
+              }}>
+                {t("app.selectRoom")}
+              </div>
+              <GameCanvas onAppReady={handlePixiReady} width={canvasWidth} height={canvasHeight} />
+            </>
+          )}
         </motion.div>
       )}
 
@@ -477,10 +494,10 @@ function AppContent() {
           animate={{ opacity: 1 }}
           style={{
             width: "100%",
-            maxWidth: "900px",
+            maxWidth: isMobile ? "100%" : "900px",
             background: "rgba(15,23,42,0.6)",
-            border: "1px solid rgba(255,255,255,0.08)",
-            borderRadius: "20px",
+            border: isMobile ? "none" : "1px solid rgba(255,255,255,0.08)",
+            borderRadius: isMobile ? "0" : "20px",
             overflow: "hidden",
           }}
         >
@@ -495,10 +512,10 @@ function AppContent() {
           animate={{ opacity: 1 }}
           style={{
             width: "100%",
-            maxWidth: "900px",
+            maxWidth: isMobile ? "100%" : "900px",
             background: "rgba(15,23,42,0.6)",
-            border: "1px solid rgba(255,255,255,0.08)",
-            borderRadius: "20px",
+            border: isMobile ? "none" : "1px solid rgba(255,255,255,0.08)",
+            borderRadius: isMobile ? "0" : "20px",
             overflow: "hidden",
           }}
         >

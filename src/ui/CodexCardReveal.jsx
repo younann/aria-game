@@ -52,7 +52,7 @@ export default function CodexCardReveal({ card, onDismiss }) {
         </motion.div>
 
         {/* Card with flip */}
-        <div style={{ perspective: "1000px" }}>
+        <div style={{ perspective: "1000px", width: "min(320px, 85vw)" }}>
           <motion.div
             initial={{ rotateY: 0 }}
             animate={{ rotateY: flipped ? 0 : 180 }}
@@ -60,7 +60,7 @@ export default function CodexCardReveal({ card, onDismiss }) {
             onAnimationComplete={() => { if (!flipped) setFlipped(true); }}
             style={{
               transformStyle: "preserve-3d",
-              width: "320px",
+              width: "100%",
             }}
           >
             {flipped ? (

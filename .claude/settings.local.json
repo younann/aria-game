@@ -25,7 +25,10 @@
       "mcp__plugin_playwright_playwright__browser_wait_for",
       "Skill(commit-commands:commit)",
       "Bash(npx vite build 2>&1)",
-      "Bash(wc -l /Users/younan.nwesre/Desktop/personal/aigame/src/labs/*.jsx | tail -1)"
+      "Bash(wc -l /Users/younan.nwesre/Desktop/personal/aigame/src/labs/*.jsx | tail -1)",
+      "Bash(grep -r \"gridSize\\\\|GRID\" src/labs/*.jsx | head -15)",
+      "Bash(grep -r \"cellSize\\\\|CELL_SIZE\\\\|grid.*px\" src/labs/*.jsx)",
+      "Bash(npx vite build --logLevel error 2>&1 | tail -20)"
     ]
   }
 }

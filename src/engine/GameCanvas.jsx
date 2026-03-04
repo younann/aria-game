@@ -1,7 +1,7 @@
 import React, { useRef, useEffect } from "react";
 import { Application } from "pixi.js";
 
-export default function GameCanvas({ onAppReady, width = 960, height = 640 }) {
+export default function GameCanvas({ onAppReady, width = 960, height = 700 }) {
   const canvasRef = useRef(null);
   const appRef = useRef(null);
 
@@ -34,17 +34,19 @@ export default function GameCanvas({ onAppReady, width = 960, height = 640 }) {
         appRef.current = null;
       }
     };
-  }, []);
+  }, [width, height]);
 
   return (
     <div
       ref={canvasRef}
       style={{
-        width: `${width}px`,
-        height: `${height}px`,
+        width: "100%",
+        maxWidth: `${width}px`,
+        aspectRatio: `${width} / ${height}`,
         borderRadius: "16px",
         overflow: "hidden",
         position: "relative",
+        margin: "0 auto",
       }}
     />
   );
