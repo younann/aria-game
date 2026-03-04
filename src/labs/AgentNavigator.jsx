@@ -1,46 +1,129 @@
-import React, { useState, useEffect } from "react";
-import { motion } from "framer-motion";
+import React, { useState, useEffect, useCallback, useRef } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import { useGame } from "../systems/GameState";
 import { playSound } from "../systems/SoundManager";
+import { MISSIONS, CONCEPT_CARDS } from "../systems/MissionConfig";
 
-const SIZE = 5;
-const START = 0;
-const GOAL = SIZE * SIZE - 1;
+/* -- Pre-placed grid for L1 Tutorial -------------------------------- */
+function generatePrePlacedGrid(size) {
+  const grid = Array(size * size).fill(0);
+  const fuelPositions = [1, 5, 6, 10, 14];
+  const asteroidPositions = [3, 12];
+  fuelPositions.forEach((p) => {
+    if (p > 0 && p < size * size - 1) grid[p] = 1;
+  });
+  asteroidPositions.forEach((p) => {
+    if (p > 0 && p < size * size - 1) grid[p] = -1;
+  });
+  return grid;
+}
 
-export default function AgentNavigator({ onComplete }) {
+/* -- Moving obstacles logic for L3 ---------------------------------- */
+function shiftObstacles(grid, size) {
+  const goal = size * size - 1;
+  const next = [...grid];
+  const asteroids = [];
+  next.forEach((val, i) => {
+    if (val === -1) asteroids.push(i);
+  });
+
+  for (const pos of asteroids) {
+    const row = Math.floor(pos / size);
+    const col = pos % size;
+    const candidates = [];
+    if (row > 0) candidates.push(pos - size);
+    if (row < size - 1) candidates.push(pos + size);
+    if (col > 0) candidates.push(pos - 1);
+    if (col < size - 1) candidates.push(pos + 1);
+
+    const valid = candidates.filter(
+      (c) => c !== 0 && c !== goal && next[c] === 0
+    );
+    if (valid.length === 0) continue;
+
+    const dest = valid[Math.floor(Math.random() * valid.length)];
+    next[pos] = 0;
+    next[dest] = -1;
+  }
+  return next;
+}
+
+/* -- Concept card helpers ------------------------------------------- */
+const LEVEL_CARDS = {
+  1: ["reinforcement_learning", "reward_signal"],
+  2: ["exploration_exploitation"],
+  3: ["policy"],
+};
+
+function getConceptCardsForLevel(level) {
+  const ids = LEVEL_CARDS[level] || [];
+  return ids
+    .map((id) => CONCEPT_CARDS.find((c) => c.id === id && c.mission === "simdeck"))
+    .filter(Boolean);
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════ */
+
+export default function AgentNavigator({ level = 1, onComplete }) {
   const { dispatch } = useGame();
-  const [grid, setGrid] = useState(Array(SIZE * SIZE).fill(0));
+
+  const levelConfig = MISSIONS.simdeck.levels[level];
+  const SIZE = levelConfig.gridSize;
+  const START = 0;
+  const GOAL = SIZE * SIZE - 1;
+
+  const [grid, setGrid] = useState(() =>
+    levelConfig.prePlaced ? generatePrePlacedGrid(SIZE) : Array(SIZE * SIZE).fill(0)
+  );
   const [botPos, setBotPos] = useState(START);
   const [running, setRunning] = useState(false);
   const [episodes, setEpisodes] = useState(0);
   const [totalReward, setTotalReward] = useState(0);
   const [path, setPath] = useState([START]);
-  const [reachedGoal, setReachedGoal] = useState(false);
+  const [goalReaches, setGoalReaches] = useState(0);
   const [done, setDone] = useState(false);
+  const [earnedStars, setEarnedStars] = useState(0);
+  const [pathHistory, setPathHistory] = useState([]);
+
+  const awardedCards = useRef(new Set());
 
   useEffect(() => {
-    dispatch({ type: "ADD_CONCEPT", payload: { title: "Reinforcement Learning", desc: "The AI learns by trial and error — getting rewards for good moves and penalties for bad ones." } });
-  }, []);
+    const cards = getConceptCardsForLevel(level);
+    cards.forEach((card) => {
+      if (!awardedCards.current.has(card.id)) {
+        awardedCards.current.add(card.id);
+        dispatch({
+          type: "ADD_CODEX_CARD",
+          payload: { id: card.id, title: card.title, description: card.description, realWorld: card.realWorld, rarity: card.rarity, icon: card.icon },
+        });
+      }
+    });
+  }, [level, dispatch]);
 
-  const toggleCell = (i) => {
+  const toggleCell = useCallback((i) => {
+    if (levelConfig.prePlaced) return;
     if (i === START || i === GOAL || running) return;
-    setGrid(g => {
+    setGrid((g) => {
       const next = [...g];
       next[i] = next[i] === 0 ? 1 : next[i] === 1 ? -1 : 0;
       return next;
     });
-  };
+  }, [running, levelConfig.prePlaced, START, GOAL]);
 
-  const runEpisode = async () => {
+  const runEpisode = useCallback(async () => {
     if (running) return;
     setRunning(true);
     setBotPos(START);
     let current = START;
     let currentPath = [START];
     let reward = 0;
+    let reachedGoalThisEpisode = false;
 
-    for (let step = 0; step < 20; step++) {
-      await new Promise(r => setTimeout(r, 250));
+    const maxSteps = SIZE * SIZE * 2;
+    const stepDelay = SIZE <= 4 ? 300 : SIZE <= 5 ? 250 : 180;
+
+    for (let step = 0; step < maxSteps; step++) {
+      await new Promise((r) => setTimeout(r, stepDelay));
       const row = Math.floor(current / SIZE);
       const col = current % SIZE;
       const moves = [];
@@ -49,8 +132,15 @@ export default function AgentNavigator({ onComplete }) {
       if (col > 0) moves.push(current - 1);
       if (col < SIZE - 1) moves.push(current + 1);
 
-      const best = moves.reduce((a, b) => (grid[b] > grid[a] ? b : a));
-      const next = Math.random() > 0.75 ? moves[Math.floor(Math.random() * moves.length)] : best;
+      const explorationRate = Math.max(0.1, 0.75 - episodes * 0.08);
+      const best = moves.reduce((a, b) => {
+        const scoreA = grid[a] + (a === GOAL ? 10 : 0);
+        const scoreB = grid[b] + (b === GOAL ? 10 : 0);
+        return scoreB > scoreA ? b : a;
+      });
+      const next = Math.random() < explorationRate
+        ? moves[Math.floor(Math.random() * moves.length)]
+        : best;
 
       current = next;
       currentPath.push(current);
@@ -60,12 +150,8 @@ export default function AgentNavigator({ onComplete }) {
 
       if (current === GOAL) {
         reward += 10;
+        reachedGoalThisEpisode = true;
         dispatch({ type: "ADD_XP", payload: 30 });
-        if (!reachedGoal && episodes === 0) {
-          dispatch({ type: "ADD_ACHIEVEMENT", payload: "Pathfinder" });
-        }
-        setReachedGoal(true);
-        dispatch({ type: "ADD_CONCEPT", payload: { title: "Reward Signal", desc: "The big reward at the goal teaches the AI which paths are worth repeating." } });
         playSound("success");
         break;
       }
@@ -75,28 +161,105 @@ export default function AgentNavigator({ onComplete }) {
       }
     }
 
-    setTotalReward(r => r + reward);
-    setEpisodes(e => e + 1);
+    setPathHistory((prev) => [...prev, currentPath]);
+    if (reachedGoalThisEpisode) {
+      setGoalReaches((g) => g + 1);
+    }
+    setTotalReward((r) => r + reward);
+    setEpisodes((e) => e + 1);
     dispatch({ type: "ADD_XP", payload: 5 });
-    setRunning(false);
-  };
 
-  const handleFinish = () => {
+    if (levelConfig.movingObstacles) {
+      setGrid((g) => shiftObstacles(g, SIZE));
+    }
+
+    setRunning(false);
+  }, [running, grid, episodes, SIZE, START, GOAL, dispatch, levelConfig.movingObstacles]);
+
+  const calculateStars = useCallback(() => {
+    const thresholds = levelConfig.starThresholds;
+    if (totalReward >= thresholds[3]) return 3;
+    if (totalReward >= thresholds[2]) return 2;
+    if (totalReward >= thresholds[1]) return 1;
+    return 0;
+  }, [totalReward, levelConfig.starThresholds]);
+
+  const canComplete = useCallback(() => {
+    if (episodes < levelConfig.minEpisodes) return false;
+    if (level === 3 && goalReaches < 3) return false;
+    return true;
+  }, [episodes, level, goalReaches, levelConfig.minEpisodes]);
+
+  const handleFinish = useCallback(() => {
+    const stars = calculateStars();
+    setEarnedStars(stars);
+
+    dispatch({ type: "SET_STARS", payload: { mission: "simdeck", level, stars } });
+    dispatch({ type: "COMPLETE_LEVEL", payload: { mission: "simdeck", level } });
     dispatch({ type: "HEAL_ARIA", payload: 25 });
-    dispatch({ type: "ADD_CONCEPT", payload: { title: "Policy", desc: "The agent's strategy for choosing actions. Through many episodes, it learns the optimal policy." } });
-    dispatch({ type: "SET_MISSION_RESULT", payload: { mission: "simdeck", result: { episodes, totalReward, reachedGoal } } });
+    dispatch({ type: "ADD_XP", payload: 10 });
+    dispatch({
+      type: "SET_MISSION_RESULT",
+      payload: { mission: "simdeck", result: { level, episodes, totalReward, goalReaches } },
+    });
+
+    playSound("success");
     setDone(true);
-  };
+  }, [calculateStars, dispatch, level, episodes, totalReward, goalReaches]);
+
+  const handleReturn = useCallback(() => {
+    if (onComplete) {
+      onComplete({ stars: earnedStars, episodes, totalReward, goalReaches });
+    }
+  }, [onComplete, earnedStars, episodes, totalReward, goalReaches]);
+
+  const getCellPathInfo = useCallback((cellIndex) => {
+    const inCurrentPath = path.includes(cellIndex);
+    const historicalHits = [];
+    pathHistory.forEach((ep, epIdx) => {
+      if (ep.includes(cellIndex)) historicalHits.push(epIdx);
+    });
+    return { inCurrentPath, historicalHits };
+  }, [path, pathHistory]);
+
+  const cellBorderRadius = SIZE <= 4 ? "12px" : SIZE <= 5 ? "10px" : "8px";
+  const cellFontSize = SIZE <= 4 ? "1.6rem" : SIZE <= 5 ? "1.4rem" : "1.1rem";
+  const gridGap = SIZE <= 5 ? "8px" : "5px";
+  const gridPadding = SIZE <= 5 ? "16px" : "12px";
+
+  /* ═══════════════════════════ COMPLETION SCREEN ═══════════════════════════════ */
 
   if (done) {
     return (
-      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}
+      <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }}
+        transition={{ duration: 0.5, ease: "easeOut" }}
         style={{ padding: "48px", textAlign: "center" }}
       >
         <div style={{ fontSize: "4rem", marginBottom: "16px" }}>🚀</div>
         <h2 style={{ fontSize: "1.8rem", fontWeight: 900, color: "#f8fafc", marginBottom: "8px" }}>
           NAVIGATION TRAINING COMPLETE
         </h2>
+        <div style={{ fontSize: "0.85rem", color: "#64748b", marginBottom: "24px", textTransform: "uppercase", letterSpacing: "0.1em" }}>
+          Level {level} — {levelConfig.name}
+        </div>
+
+        <div style={{ display: "flex", gap: "8px", justifyContent: "center", marginBottom: "24px" }}>
+          {[1, 2, 3].map((s) => (
+            <motion.span key={s}
+              initial={{ scale: 0, rotate: -30 }}
+              animate={{ scale: 1, rotate: 0 }}
+              transition={{ delay: s * 0.2, type: "spring", stiffness: 200 }}
+              style={{
+                fontSize: "2.5rem",
+                color: s <= earnedStars ? "#fbbf24" : "#334155",
+                filter: s <= earnedStars ? "drop-shadow(0 0 8px rgba(251,191,36,0.6))" : "none",
+              }}
+            >
+              {s <= earnedStars ? "\u2605" : "\u2606"}
+            </motion.span>
+          ))}
+        </div>
+
         <div style={{ display: "flex", justifyContent: "center", gap: "32px", margin: "32px 0" }}>
           <div>
             <div style={{ fontSize: "2rem", fontWeight: 900, color: "#f97316" }}>{episodes}</div>
@@ -106,9 +269,50 @@ export default function AgentNavigator({ onComplete }) {
             <div style={{ fontSize: "2rem", fontWeight: 900, color: "#10b981" }}>{totalReward.toFixed(0)}</div>
             <div style={{ fontSize: "0.7rem", color: "#94a3b8" }}>TOTAL REWARD</div>
           </div>
+          {level === 3 && (
+            <div>
+              <div style={{ fontSize: "2rem", fontWeight: 900, color: "#8b5cf6" }}>{goalReaches}</div>
+              <div style={{ fontSize: "0.7rem", color: "#94a3b8" }}>GOAL REACHES</div>
+            </div>
+          )}
         </div>
-        <button onClick={onComplete}
-          style={{ padding: "16px 48px", background: "#f97316", border: "none", borderRadius: "8px", color: "white", fontSize: "1rem", fontWeight: 800, cursor: "pointer" }}
+
+        {getConceptCardsForLevel(level).length > 0 && (
+          <div style={{ marginBottom: "24px" }}>
+            <div style={{ fontSize: "0.7rem", color: "#64748b", marginBottom: "8px", letterSpacing: "0.1em" }}>
+              CODEX CARDS EARNED
+            </div>
+            <div style={{ display: "flex", justifyContent: "center", gap: "12px", flexWrap: "wrap" }}>
+              {getConceptCardsForLevel(level).map((card) => (
+                <motion.div key={card.id}
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.3 }}
+                  style={{
+                    padding: "8px 16px",
+                    background: card.rarity === "rare" ? "rgba(139,92,246,0.15)" : "rgba(249,115,22,0.1)",
+                    border: `1px solid ${card.rarity === "rare" ? "rgba(139,92,246,0.3)" : "rgba(249,115,22,0.2)"}`,
+                    borderRadius: "8px", fontSize: "0.8rem",
+                    color: card.rarity === "rare" ? "#a78bfa" : "#fb923c",
+                  }}
+                >
+                  <span style={{ marginRight: "6px" }}>{card.icon}</span>
+                  {card.title}
+                  {card.rarity === "rare" && (
+                    <span style={{ marginLeft: "8px", fontSize: "0.6rem", color: "#a78bfa", fontWeight: 700 }}>RARE</span>
+                  )}
+                </motion.div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        <button onClick={handleReturn}
+          style={{
+            padding: "16px 48px", background: "#f97316", border: "none",
+            borderRadius: "8px", color: "white", fontSize: "1rem",
+            fontWeight: 800, cursor: "pointer", letterSpacing: "0.05em",
+          }}
         >
           RETURN TO STATION
         </button>
@@ -116,80 +320,152 @@ export default function AgentNavigator({ onComplete }) {
     );
   }
 
+  /* ═══════════════════════════ GAMEPLAY SCREEN ═══════════════════════════════ */
+
   return (
     <div style={{ padding: "32px" }}>
-      <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "24px" }}>
+      <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "24px", alignItems: "flex-start" }}>
         <div>
-          <h3 style={{ fontSize: "1.1rem", fontWeight: 800, letterSpacing: "0.1em" }}>ASTEROID FIELD</h3>
-          <div style={{ fontSize: "0.75rem", color: "#64748b" }}>Place fuel cells and asteroids, then deploy ARIA</div>
+          <h3 style={{ fontSize: "1.1rem", fontWeight: 800, letterSpacing: "0.1em", margin: 0 }}>
+            ASTEROID FIELD
+          </h3>
+          <div style={{ fontSize: "0.75rem", color: "#64748b", marginTop: "4px" }}>
+            {levelConfig.prePlaced
+              ? "Grid is pre-configured — deploy ARIA and watch her learn!"
+              : "Place fuel cells and asteroids, then deploy ARIA"}
+          </div>
+          <div style={{ fontSize: "0.65rem", color: "#475569", marginTop: "2px", textTransform: "uppercase", letterSpacing: "0.08em" }}>
+            Level {level} — {levelConfig.name} — {SIZE}x{SIZE} grid
+          </div>
         </div>
         <div style={{ display: "flex", gap: "24px", textAlign: "right" }}>
           <div>
             <div style={{ fontSize: "0.6rem", color: "#64748b" }}>EPISODES</div>
-            <div style={{ fontWeight: 800, color: "#f97316" }}>{episodes}</div>
+            <div style={{ fontWeight: 800, color: "#f97316" }}>
+              {episodes}<span style={{ color: "#475569", fontWeight: 400 }}>/{levelConfig.minEpisodes}</span>
+            </div>
           </div>
           <div>
             <div style={{ fontSize: "0.6rem", color: "#64748b" }}>REWARD</div>
             <div style={{ fontWeight: 800 }}>{totalReward.toFixed(0)}</div>
           </div>
+          {level === 3 && (
+            <div>
+              <div style={{ fontSize: "0.6rem", color: "#64748b" }}>GOAL REACHED</div>
+              <div style={{ fontWeight: 800, color: goalReaches >= 3 ? "#10b981" : "#8b5cf6" }}>
+                {goalReaches}/3
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
       <div style={{
         display: "grid", gridTemplateColumns: `repeat(${SIZE}, 1fr)`,
-        gap: "8px", marginBottom: "24px",
-        background: "rgba(0,0,0,0.3)", borderRadius: "16px", padding: "16px",
+        gap: gridGap, marginBottom: "24px",
+        background: "rgba(0,0,0,0.3)", borderRadius: "16px", padding: gridPadding,
       }}>
-        {grid.map((val, i) => (
-          <motion.div key={i} onClick={() => toggleCell(i)}
-            whileHover={!running ? { scale: 0.95 } : {}}
-            style={{
-              aspectRatio: "1", borderRadius: "10px",
-              background: val === 1 ? "rgba(16,185,129,0.15)" : val === -1 ? "rgba(244,63,94,0.15)" : "rgba(255,255,255,0.03)",
-              border: `2px solid ${val === 1 ? "#10b981" : val === -1 ? "#f43f5e" : "rgba(255,255,255,0.06)"}`,
-              display: "flex", alignItems: "center", justifyContent: "center",
-              cursor: running || i === START || i === GOAL ? "default" : "pointer",
-              position: "relative", fontSize: "1.5rem",
-            }}
-          >
-            {i === START && botPos !== i && <span style={{ fontSize: "0.6rem", color: "#64748b" }}>START</span>}
-            {i === GOAL && <span>⭐</span>}
-            {botPos === i && (
-              <motion.span layoutId="ship" transition={{ type: "spring", damping: 15 }}>🚀</motion.span>
-            )}
-            {val === 1 && botPos !== i && i !== GOAL && <span>⛽</span>}
-            {val === -1 && botPos !== i && <span>☄️</span>}
-            {path.includes(i) && botPos !== i && i !== START && i !== GOAL && val === 0 && (
-              <div style={{ width: "6px", height: "6px", borderRadius: "50%", background: "#f9731644" }} />
-            )}
-          </motion.div>
-        ))}
+        {grid.map((val, i) => {
+          const { inCurrentPath, historicalHits } = getCellPathInfo(i);
+          const isStart = i === START;
+          const isGoal = i === GOAL;
+          const isBotHere = botPos === i;
+          const showFuel = val === 1 && !isBotHere && !isGoal;
+          const showAsteroid = val === -1 && !isBotHere;
+          const isReadOnly = levelConfig.prePlaced || running || isStart || isGoal;
+
+          const showHistoryDot = !isBotHere && !isStart && !isGoal && val === 0 && !inCurrentPath && historicalHits.length > 0;
+          const showCurrentDot = inCurrentPath && !isBotHere && !isStart && !isGoal && val === 0;
+          const historyOpacity = showHistoryDot ? Math.min(0.5, 0.1 + historicalHits.length * 0.06) : 0;
+
+          return (
+            <motion.div key={i} onClick={() => toggleCell(i)}
+              whileHover={!isReadOnly ? { scale: 0.95 } : {}}
+              style={{
+                aspectRatio: "1", borderRadius: cellBorderRadius,
+                background: val === 1 ? "rgba(16,185,129,0.15)" : val === -1 ? "rgba(244,63,94,0.15)" : "rgba(255,255,255,0.03)",
+                border: `2px solid ${val === 1 ? "#10b981" : val === -1 ? "#f43f5e" : "rgba(255,255,255,0.06)"}`,
+                display: "flex", alignItems: "center", justifyContent: "center",
+                cursor: isReadOnly ? "default" : "pointer",
+                position: "relative", fontSize: cellFontSize,
+              }}
+            >
+              {isStart && !isBotHere && <span style={{ fontSize: "0.6rem", color: "#64748b" }}>START</span>}
+              {isGoal && <span>⭐</span>}
+              {isBotHere && (
+                <motion.span layoutId="ship" transition={{ type: "spring", damping: 15 }}>🚀</motion.span>
+              )}
+              {showFuel && <span>⛽</span>}
+              {showAsteroid && <span>☄️</span>}
+
+              {showHistoryDot && (
+                <div style={{
+                  width: "5px", height: "5px", borderRadius: "50%",
+                  background: `rgba(249,115,22,${historyOpacity})`, position: "absolute",
+                }} />
+              )}
+              {showCurrentDot && (
+                <div style={{
+                  width: "6px", height: "6px", borderRadius: "50%",
+                  background: "rgba(249,115,22,0.7)", boxShadow: "0 0 6px rgba(249,115,22,0.4)",
+                  position: "absolute",
+                }} />
+              )}
+            </motion.div>
+          );
+        })}
       </div>
 
       <div style={{ display: "flex", gap: "12px", marginBottom: "24px" }}>
         <button onClick={runEpisode} disabled={running}
           style={{
-            flex: 1, padding: "16px", background: running ? "rgba(255,255,255,0.05)" : "#f97316",
-            border: "none", borderRadius: "10px", color: "white", fontWeight: 800, cursor: running ? "wait" : "pointer",
+            flex: 1, padding: "16px",
+            background: running ? "rgba(255,255,255,0.05)" : "#f97316",
+            border: "none", borderRadius: "10px", color: "white",
+            fontWeight: 800, cursor: running ? "wait" : "pointer",
             fontSize: "0.9rem", letterSpacing: "0.1em",
           }}
         >
           {running ? "SIMULATING..." : "DEPLOY EPISODE"}
         </button>
-        {episodes >= 3 && (
-          <button onClick={handleFinish}
-            style={{ padding: "16px 24px", background: "#10b981", border: "none", borderRadius: "10px", color: "white", fontWeight: 800, cursor: "pointer", fontSize: "0.9rem" }}
-          >
-            COMPLETE
-          </button>
-        )}
+
+        <AnimatePresence>
+          {canComplete() && (
+            <motion.button
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.9 }}
+              onClick={handleFinish}
+              style={{
+                padding: "16px 24px", background: "#10b981",
+                border: "none", borderRadius: "10px", color: "white",
+                fontWeight: 800, cursor: "pointer", fontSize: "0.9rem",
+                letterSpacing: "0.05em",
+              }}
+            >
+              COMPLETE
+            </motion.button>
+          )}
+        </AnimatePresence>
       </div>
 
+      {levelConfig.movingObstacles && (
+        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}
+          style={{
+            padding: "10px 16px", background: "rgba(139,92,246,0.08)",
+            border: "1px solid rgba(139,92,246,0.2)", borderRadius: "10px",
+            fontSize: "0.75rem", color: "#a78bfa", marginBottom: "16px",
+            display: "flex", alignItems: "center", gap: "8px",
+          }}
+        >
+          <span style={{ fontSize: "1rem" }}>⚠️</span>
+          <span><strong>NON-STATIONARY ENVIRONMENT:</strong> Asteroids shift position after each episode. ARIA must adapt!</span>
+        </motion.div>
+      )}
+
       <div style={{
-        padding: "16px",
-        background: "rgba(249,115,22,0.08)",
-        border: "1px solid rgba(249,115,22,0.2)",
-        borderRadius: "10px",
+        padding: "16px", background: "rgba(249,115,22,0.08)",
+        border: "1px solid rgba(249,115,22,0.2)", borderRadius: "10px",
         fontSize: "0.8rem", color: "#94a3b8", lineHeight: 1.6,
       }}>
         <strong style={{ color: "#fb923c" }}>HOW IT WORKS:</strong>
@@ -200,9 +476,29 @@ export default function AgentNavigator({ onComplete }) {
           <span>☄️ Asteroid (-1 penalty)</span>
         </div>
         <div style={{ marginTop: "8px", color: "#64748b" }}>
-          Click tiles to cycle: empty → ⛽ → ☄️ → empty. Place items, then hit DEPLOY to watch ARIA learn!
+          {levelConfig.prePlaced
+            ? `Items are pre-placed. Hit DEPLOY to watch ARIA learn! Run at least ${levelConfig.minEpisodes} episodes.`
+            : "Click tiles to cycle: empty → ⛽ → ☄️ → empty. Place items, then hit DEPLOY to watch ARIA learn!"}
+          {level === 3 && " ARIA must reach the goal 3 times to complete."}
         </div>
       </div>
+
+      {episodes > 0 && !canComplete() && (
+        <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
+          style={{
+            marginTop: "16px", padding: "12px 16px",
+            background: "rgba(255,255,255,0.03)", borderRadius: "10px",
+            fontSize: "0.75rem", color: "#64748b", textAlign: "center",
+          }}
+        >
+          {episodes < levelConfig.minEpisodes && (
+            <span>Run {levelConfig.minEpisodes - episodes} more episode{levelConfig.minEpisodes - episodes > 1 ? "s" : ""} to unlock COMPLETE</span>
+          )}
+          {episodes >= levelConfig.minEpisodes && level === 3 && goalReaches < 3 && (
+            <span>ARIA needs to reach the goal {3 - goalReaches} more time{3 - goalReaches > 1 ? "s" : ""}</span>
+          )}
+        </motion.div>
+      )}
     </div>
   );
 }
