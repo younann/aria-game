@@ -2,20 +2,27 @@ import { Container, Graphics, Text, TextStyle } from "pixi.js";
 import { createStarField, createDataStream } from "./ParticleEffects.js";
 
 const ROOMS = [
-  { id: "bridge", label: "BRIDGE", x: 480, y: 100, color: 0x3b82f6, w: 160, h: 80 },
-  { id: "datavault", label: "DATA VAULT", x: 200, y: 280, color: 0x10b981, w: 160, h: 80 },
-  { id: "neuralcore", label: "NEURAL CORE", x: 480, y: 280, color: 0x8b5cf6, w: 160, h: 80 },
-  { id: "simdeck", label: "SIM DECK", x: 760, y: 280, color: 0xf97316, w: 160, h: 80 },
-  { id: "command", label: "COMMAND", x: 480, y: 460, color: 0xfbbf24, w: 160, h: 80 },
+  { id: "bridge",        label: "BRIDGE",          x: 480, y: 80,  color: 0x3b82f6, w: 160, h: 70 },
+  { id: "datavault",     label: "DATA VAULT",      x: 160, y: 240, color: 0x10b981, w: 150, h: 70 },
+  { id: "opticslab",     label: "OPTICS LAB",      x: 480, y: 240, color: 0x06b6d4, w: 150, h: 70 },
+  { id: "commsarray",    label: "COMMS ARRAY",     x: 800, y: 240, color: 0xec4899, w: 150, h: 70 },
+  { id: "neuralcore",    label: "NEURAL CORE",     x: 300, y: 400, color: 0x8b5cf6, w: 150, h: 70 },
+  { id: "simdeck",       label: "SIM DECK",        x: 660, y: 400, color: 0xf97316, w: 150, h: 70 },
+  { id: "ethicschamber", label: "ETHICS CHAMBER",  x: 480, y: 520, color: 0xf43f5e, w: 160, h: 70 },
+  { id: "command",       label: "COMMAND CENTER",   x: 480, y: 640, color: 0xfbbf24, w: 160, h: 70 },
 ];
 
 const CORRIDORS = [
   { from: "bridge", to: "datavault" },
-  { from: "bridge", to: "neuralcore" },
-  { from: "bridge", to: "simdeck" },
-  { from: "datavault", to: "command" },
-  { from: "neuralcore", to: "command" },
-  { from: "simdeck", to: "command" },
+  { from: "bridge", to: "opticslab" },
+  { from: "bridge", to: "commsarray" },
+  { from: "datavault", to: "neuralcore" },
+  { from: "opticslab", to: "neuralcore" },
+  { from: "opticslab", to: "simdeck" },
+  { from: "commsarray", to: "simdeck" },
+  { from: "neuralcore", to: "ethicschamber" },
+  { from: "simdeck", to: "ethicschamber" },
+  { from: "ethicschamber", to: "command" },
 ];
 
 const labelStyle = new TextStyle({
@@ -27,7 +34,7 @@ const labelStyle = new TextStyle({
   align: "center",
 });
 
-export function buildStationHub(app, unlockedRooms, onRoomClick) {
+export function buildStationHub(app, unlockedRooms, onRoomClick, starsData = {}) {
   const hub = new Container();
 
   hub.addChild(createStarField(app));
@@ -75,7 +82,21 @@ export function buildStationHub(app, unlockedRooms, onRoomClick) {
       ...labelStyle, fill: isUnlocked ? 0xffffff : 0x475569,
     })});
     label.anchor.set(0.5);
+    label.y = -4;
     container.addChild(label);
+
+    // Star count below room label for unlocked non-bridge rooms
+    if (isUnlocked && room.id !== "bridge" && starsData[room.id]) {
+      const missionStars = starsData[room.id];
+      const earned = Object.values(missionStars).reduce((a, b) => a + b, 0);
+      const max = Object.keys(missionStars).length > 0 ? Object.keys(missionStars).length * 3 : 9;
+      const starText = new Text({ text: `★ ${earned}/${max}`, style: new TextStyle({
+        fontFamily: "monospace", fontSize: 10, fill: 0xfbbf24, letterSpacing: 1,
+      })});
+      starText.anchor.set(0.5);
+      starText.y = 14;
+      container.addChild(starText);
+    }
 
     if (!isUnlocked) {
       const lock = new Text({ text: "🔒", style: new TextStyle({ fontSize: 18 }) });

@@ -1,36 +1,93 @@
 import React, { useState, useCallback, useRef, useEffect } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { useGame } from "./systems/GameState";
+import { useGame, RANKS } from "./systems/GameState";
 import { DIALOGUES } from "./systems/DialogueData";
+import { MISSIONS, UNLOCK_TREE } from "./systems/MissionConfig";
 import GameCanvas from "./engine/GameCanvas";
 import { buildStationHub } from "./engine/StationHub";
 import HUD from "./ui/HUD";
 import AchievementPopup from "./ui/AchievementPopup";
 import DialogueBox from "./ui/DialogueBox";
 import MissionBriefing from "./ui/MissionBriefing";
+import LevelSelect from "./ui/LevelSelect";
+import RankCeremony from "./ui/RankCeremony";
+import Codex from "./ui/Codex";
 import SignalClassifier from "./labs/SignalClassifier";
 import SynapticWiring from "./labs/SynapticWiring";
 import AgentNavigator from "./labs/AgentNavigator";
+import PatternScanner from "./labs/PatternScanner";
+import MessageDecoder from "./labs/MessageDecoder";
+import BiasDetector from "./labs/BiasDetector";
 import CommandCenter from "./labs/CommandCenter";
 
 const MISSION_FLOW = {
-  datavault: { introDialogue: "datavault_intro", completeDialogue: "datavault_complete", unlockNext: "neuralcore" },
-  neuralcore: { introDialogue: "neuralcore_intro", completeDialogue: "neuralcore_complete", unlockNext: "simdeck" },
-  simdeck: { introDialogue: "simdeck_intro", completeDialogue: "simdeck_complete", unlockNext: "command" },
-  command: { introDialogue: "command_finale", completeDialogue: null, unlockNext: null },
+  datavault:     { introDialogue: "datavault_intro",     completeDialogue: "datavault_complete" },
+  opticslab:     { introDialogue: "opticslab_intro",     completeDialogue: "opticslab_complete" },
+  commsarray:    { introDialogue: "commsarray_intro",    completeDialogue: "commsarray_complete" },
+  neuralcore:    { introDialogue: "neuralcore_intro",    completeDialogue: "neuralcore_complete" },
+  simdeck:       { introDialogue: "simdeck_intro",       completeDialogue: "simdeck_complete" },
+  ethicschamber: { introDialogue: "ethicschamber_intro", completeDialogue: "ethicschamber_complete" },
+  command:       { introDialogue: "command_finale",      completeDialogue: null },
 };
+
+const MAIN_MISSIONS = ["datavault", "opticslab", "commsarray", "neuralcore", "simdeck"];
+
+function getRankName(totalStars) {
+  let rank = RANKS[0].name;
+  for (const r of RANKS) {
+    if (totalStars >= r.stars) rank = r.name;
+  }
+  return rank;
+}
+
+function checkUnlocks(state) {
+  const newUnlocks = [];
+  for (const [roomId, req] of Object.entries(UNLOCK_TREE)) {
+    if (state.unlockedRooms.includes(roomId)) continue;
+    if (!req.requires || req.requires === "bridge_intro") continue;
+
+    const r = req.requires;
+    if (r.allMissionsLevel) {
+      const allDone = MAIN_MISSIONS.every(m => state.levelComplete?.[m]?.[r.allMissionsLevel]);
+      if (allDone) newUnlocks.push(roomId);
+    } else if (r.missionsCompleted) {
+      let count = 0;
+      for (const m of MAIN_MISSIONS) {
+        if (state.levelComplete?.[m]?.[r.level]) count++;
+      }
+      if (count >= r.missionsCompleted) newUnlocks.push(roomId);
+    } else if (r.mission && r.level) {
+      if (!state.levelComplete?.[r.mission]?.[r.level]) continue;
+      if (r.minStars && (state.totalStars || 0) < r.minStars) continue;
+      newUnlocks.push(roomId);
+    }
+  }
+  return newUnlocks;
+}
 
 export default function App() {
   const { state, dispatch } = useGame();
-  const [phase, setPhase] = useState("bridge_intro"); // bridge_intro | hub | dialogue | briefing | mission | complete
-  const [currentDialogue, setCurrentDialogue] = useState(DIALOGUES.bridge_intro);
+  // Phases: name_entry | bridge_intro | hub | level_select | dialogue | briefing | mission | mission_complete_dialogue | complete
+  const [phase, setPhase] = useState("name_entry");
+  const [currentDialogue, setCurrentDialogue] = useState(null);
+  const [nameInput, setNameInput] = useState("");
   const [currentMission, setCurrentMission] = useState(null);
+  const [currentLevel, setCurrentLevel] = useState(1);
   const [achievementQueue, setAchievementQueue] = useState([]);
   const [showingAchievement, setShowingAchievement] = useState(null);
+  const [codexOpen, setCodexOpen] = useState(false);
+  const [rankCeremonyData, setRankCeremonyData] = useState(null);
   const pixiAppRef = useRef(null);
   const hubContainerRef = useRef(null);
   const [pixiReadyCounter, setPixiReadyCounter] = useState(0);
-  const [codexOpen, setCodexOpen] = useState(false);
+  const prevRankRef = useRef(getRankName(state.totalStars || 0));
+
+  const handleNameSubmit = useCallback(() => {
+    const name = nameInput.trim() || "Cadet Nova";
+    dispatch({ type: "SET_PLAYER_NAME", payload: name });
+    setCurrentDialogue(DIALOGUES.bridge_intro);
+    setPhase("bridge_intro");
+  }, [nameInput, dispatch]);
 
   // Watch for new achievements
   const prevAchievements = useRef(state.achievements.length);
@@ -49,6 +106,23 @@ export default function App() {
     }
   }, [achievementQueue, showingAchievement]);
 
+  // Auto-unlock rooms when requirements are met
+  useEffect(() => {
+    const newUnlocks = checkUnlocks(state);
+    for (const roomId of newUnlocks) {
+      dispatch({ type: "UNLOCK_ROOM", payload: roomId });
+    }
+  }, [state.levelComplete, state.totalStars, state.unlockedRooms, dispatch]);
+
+  // Detect rank changes
+  useEffect(() => {
+    const currentRank = getRankName(state.totalStars || 0);
+    if (currentRank !== prevRankRef.current) {
+      setRankCeremonyData({ oldRank: prevRankRef.current, newRank: currentRank });
+      prevRankRef.current = currentRank;
+    }
+  }, [state.totalStars]);
+
   const rebuildHub = useCallback(() => {
     const app = pixiAppRef.current;
     if (!app || !app.stage) return;
@@ -56,10 +130,10 @@ export default function App() {
       app.stage.removeChild(hubContainerRef.current);
       hubContainerRef.current.destroy({ children: true });
     }
-    const hub = buildStationHub(app, state.unlockedRooms, handleRoomClick);
+    const hub = buildStationHub(app, state.unlockedRooms, handleRoomClick, state.stars || {});
     app.stage.addChild(hub);
     hubContainerRef.current = hub;
-  }, [state.unlockedRooms]);
+  }, [state.unlockedRooms, state.stars]);
 
   const handlePixiReady = useCallback((app) => {
     pixiAppRef.current = app;
@@ -73,40 +147,69 @@ export default function App() {
   }, [phase, rebuildHub, pixiReadyCounter]);
 
   const handleRoomClick = useCallback((roomId) => {
-    if (roomId === "bridge") return; // Bridge is just the intro, no mission
-    const flow = MISSION_FLOW[roomId];
-    if (!flow) return;
-
+    if (roomId === "bridge") return;
     setCurrentMission(roomId);
 
     if (roomId === "command") {
-      // Command center: play finale dialogue then show finale
+      const flow = MISSION_FLOW.command;
+      if (DIALOGUES[flow.introDialogue]) {
+        setCurrentDialogue(DIALOGUES[flow.introDialogue]);
+        setPhase("dialogue");
+      } else {
+        setPhase("complete");
+      }
+      return;
+    }
+
+    // All other missions: go to level select
+    setPhase("level_select");
+  }, []);
+
+  const handleLevelSelect = useCallback((level) => {
+    setCurrentLevel(level);
+    const missionId = currentMission;
+    const flow = MISSION_FLOW[missionId];
+
+    // Show intro dialogue on first visit to this mission
+    const hasCompletedAny = Object.keys(state.levelComplete?.[missionId] || {}).length > 0;
+    if (!hasCompletedAny && flow?.introDialogue && DIALOGUES[flow.introDialogue]) {
       setCurrentDialogue(DIALOGUES[flow.introDialogue]);
       setPhase("dialogue");
       return;
     }
 
-    // Other missions: play intro dialogue
-    setCurrentDialogue(DIALOGUES[flow.introDialogue]);
-    setPhase("dialogue");
+    // Show level-specific dialogue for L2/L3 if available
+    if (level > 1) {
+      const levelDialogueKey = `level${level}_intro`;
+      if (DIALOGUES[levelDialogueKey]) {
+        setCurrentDialogue(DIALOGUES[levelDialogueKey]);
+        setPhase("dialogue");
+        return;
+      }
+    }
+
+    // No dialogue — straight to briefing
+    setPhase("briefing");
+  }, [currentMission, state.levelComplete]);
+
+  const handleLevelSelectBack = useCallback(() => {
+    setCurrentMission(null);
+    setPhase("hub");
   }, []);
 
   const handleDialogueComplete = useCallback((nextKey) => {
     if (nextKey && DIALOGUES[nextKey]) {
-      // Branching dialogue
       setCurrentDialogue(DIALOGUES[nextKey]);
       return;
     }
 
     if (phase === "bridge_intro" || (phase === "dialogue" && !currentMission)) {
-      // Bridge intro done — unlock datavault and go to hub
       dispatch({ type: "UNLOCK_ROOM", payload: "datavault" });
       setPhase("hub");
       return;
     }
 
     if (currentMission === "command") {
-      // Finale dialogue done — show command center
       dispatch({ type: "HEAL_ARIA", payload: 25 });
       dispatch({ type: "ADD_XP", payload: 100 });
       setPhase("complete");
@@ -114,17 +217,11 @@ export default function App() {
     }
 
     if (phase === "dialogue" && currentMission) {
-      // Mission intro dialogue done — show briefing
       setPhase("briefing");
       return;
     }
 
     if (phase === "mission_complete_dialogue") {
-      // Mission complete dialogue done — unlock next room, back to hub
-      const flow = MISSION_FLOW[currentMission];
-      if (flow?.unlockNext) {
-        dispatch({ type: "UNLOCK_ROOM", payload: flow.unlockNext });
-      }
       setCurrentMission(null);
       setPhase("hub");
       return;
@@ -135,9 +232,9 @@ export default function App() {
     setPhase("mission");
   }, []);
 
-  const handleMissionComplete = useCallback(() => {
+  const handleMissionComplete = useCallback((result) => {
     const flow = MISSION_FLOW[currentMission];
-    if (flow?.completeDialogue) {
+    if (flow?.completeDialogue && DIALOGUES[flow.completeDialogue]) {
       setCurrentDialogue(DIALOGUES[flow.completeDialogue]);
       setPhase("mission_complete_dialogue");
     } else {
@@ -146,14 +243,25 @@ export default function App() {
     }
   }, [currentMission]);
 
+  const handleRankCeremonyDismiss = useCallback(() => {
+    setRankCeremonyData(null);
+  }, []);
+
   const renderMission = () => {
+    const props = { level: currentLevel, onComplete: handleMissionComplete };
     switch (currentMission) {
       case "datavault":
-        return <SignalClassifier onComplete={handleMissionComplete} />;
+        return <SignalClassifier {...props} />;
       case "neuralcore":
-        return <SynapticWiring onComplete={handleMissionComplete} />;
+        return <SynapticWiring {...props} />;
       case "simdeck":
-        return <AgentNavigator onComplete={handleMissionComplete} />;
+        return <AgentNavigator {...props} />;
+      case "opticslab":
+        return <PatternScanner {...props} />;
+      case "commsarray":
+        return <MessageDecoder {...props} />;
+      case "ethicschamber":
+        return <BiasDetector {...props} />;
       default:
         return null;
     }
@@ -168,14 +276,88 @@ export default function App() {
       justifyContent: "center",
       padding: "24px",
     }}>
-      {/* HUD - always visible except during bridge intro */}
-      {phase !== "bridge_intro" && <HUD onOpenCodex={() => setCodexOpen(true)} />}
+      {/* HUD - always visible except during intro phases */}
+      {phase !== "bridge_intro" && phase !== "name_entry" && <HUD onOpenCodex={() => setCodexOpen(true)} />}
 
       {/* Achievement Popup */}
       <AchievementPopup
         achievement={showingAchievement}
         onDone={() => setShowingAchievement(null)}
       />
+
+      {/* Name Entry */}
+      {phase === "name_entry" && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          style={{ textAlign: "center", maxWidth: "500px" }}
+        >
+          <motion.div
+            animate={{ scale: [1, 1.05, 1], opacity: [0.7, 1, 0.7] }}
+            transition={{ duration: 4, repeat: Infinity }}
+            style={{ fontSize: "6rem", marginBottom: "24px" }}
+          >
+            🧠
+          </motion.div>
+          <h1 style={{
+            fontSize: "3.5rem", fontWeight: 900, marginBottom: "12px",
+            background: "linear-gradient(135deg, #8b5cf6, #06b6d4)",
+            backgroundClip: "text", WebkitBackgroundClip: "text",
+            WebkitTextFillColor: "transparent",
+          }}>
+            NEURAL QUEST
+          </h1>
+          <p style={{ color: "#94a3b8", fontSize: "1.1rem", lineHeight: 1.7, marginBottom: "32px" }}>
+            The ISS Prometheus needs you. An AI named ARIA has been damaged by a cosmic storm.
+            Repair her, and learn how artificial intelligence really works.
+          </p>
+          <div style={{ marginBottom: "24px" }}>
+            <label style={{
+              display: "block", fontSize: "0.75rem", color: "#64748b",
+              letterSpacing: "0.15em", textTransform: "uppercase", marginBottom: "12px",
+            }}>
+              ENTER YOUR NAME, CADET
+            </label>
+            <input
+              type="text"
+              value={nameInput}
+              onChange={(e) => setNameInput(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && handleNameSubmit()}
+              placeholder="Cadet Nova"
+              maxLength={20}
+              autoFocus
+              style={{
+                width: "100%", maxWidth: "300px",
+                padding: "14px 20px",
+                fontSize: "1.1rem",
+                textAlign: "center",
+                background: "rgba(15, 23, 42, 0.8)",
+                border: "2px solid rgba(139, 92, 246, 0.4)",
+                borderRadius: "12px",
+                color: "#e2e8f0",
+                outline: "none",
+                fontFamily: "inherit",
+              }}
+            />
+          </div>
+          <button
+            onClick={handleNameSubmit}
+            style={{
+              padding: "14px 40px",
+              fontSize: "1rem",
+              fontWeight: 700,
+              letterSpacing: "0.1em",
+              background: "linear-gradient(135deg, #8b5cf6, #06b6d4)",
+              border: "none",
+              borderRadius: "12px",
+              color: "#fff",
+              cursor: "pointer",
+            }}
+          >
+            BEGIN MISSION
+          </button>
+        </motion.div>
+      )}
 
       {/* Bridge Intro */}
       {phase === "bridge_intro" && (
@@ -203,7 +385,7 @@ export default function App() {
             The ISS Prometheus needs you. An AI named ARIA has been damaged by a cosmic storm.
             Repair her, and learn how artificial intelligence really works.
           </p>
-          <GameCanvas onAppReady={handlePixiReady} width={960} height={540} />
+          <GameCanvas onAppReady={handlePixiReady} width={960} height={700} />
         </motion.div>
       )}
 
@@ -220,15 +402,27 @@ export default function App() {
           }}>
             SELECT A ROOM TO ENTER
           </div>
-          <GameCanvas onAppReady={handlePixiReady} width={960} height={540} />
+          <GameCanvas onAppReady={handlePixiReady} width={960} height={700} />
         </motion.div>
       )}
+
+      {/* Level Select */}
+      <AnimatePresence>
+        {phase === "level_select" && currentMission && (
+          <LevelSelect
+            missionId={currentMission}
+            onSelectLevel={handleLevelSelect}
+            onBack={handleLevelSelectBack}
+          />
+        )}
+      </AnimatePresence>
 
       {/* Mission Briefing */}
       <AnimatePresence>
         {phase === "briefing" && currentMission && (
           <MissionBriefing
             missionId={currentMission}
+            level={currentLevel}
             onStart={handleMissionStart}
           />
         )}
@@ -276,6 +470,20 @@ export default function App() {
           <DialogueBox
             dialogue={currentDialogue}
             onComplete={handleDialogueComplete}
+          />
+        )}
+      </AnimatePresence>
+
+      {/* Codex Panel */}
+      <Codex isOpen={codexOpen} onClose={() => setCodexOpen(false)} />
+
+      {/* Rank Ceremony Overlay */}
+      <AnimatePresence>
+        {rankCeremonyData && (
+          <RankCeremony
+            oldRank={rankCeremonyData.oldRank}
+            newRank={rankCeremonyData.newRank}
+            onDismiss={handleRankCeremonyDismiss}
           />
         )}
       </AnimatePresence>

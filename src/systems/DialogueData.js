@@ -52,9 +52,71 @@ export const DIALOGUES = {
     { speaker: "ARIA", portrait: "aria_75", text: "This is Reinforcement Learning — learning through experience, not just examples. I'm almost fully repaired!" },
     { speaker: "Commander", portrait: "commander", text: "Outstanding, Cadet. Report to the Command Center. It's time to bring ARIA fully online." },
   ],
+  opticslab_intro: [
+    { speaker: "ARIA", portrait: "aria_25", text: "Cadet... I can process data now, but I can't SEE. My visual cortex is completely offline." },
+    { speaker: "ARIA", portrait: "aria_25", text: "Everything is just... noise. Random symbols. I need to learn to find patterns in the chaos." },
+    { speaker: "System", portrait: null, text: "MISSION: Help ARIA's visual cortex recognize patterns in a grid of symbols — the foundation of Computer Vision." },
+  ],
+  opticslab_complete: [
+    { speaker: "ARIA", portrait: "aria_25", text: "I can SEE patterns now! Shapes, edges, structures — they jump out from the noise." },
+    { speaker: "ARIA", portrait: "aria_25", text: "This is how Computer Vision works — detecting features and filtering out irrelevant data." },
+    { speaker: "Commander", portrait: "commander", text: "ARIA's optical systems are coming back online. Keep up the excellent work, Cadet." },
+  ],
+  commsarray_intro: [
+    { speaker: "ARIA", portrait: "aria_25", text: "Cadet... incoming transmissions... but the words... they don't make sense to me anymore." },
+    { speaker: "ARIA", portrait: "aria_25", text: "Is 'greetings' a warning? Is 'danger' friendly? I've lost my ability to understand language." },
+    { speaker: "System", portrait: null, text: "MISSION: Classify alien transmissions to restore ARIA's Natural Language Processing abilities." },
+  ],
+  commsarray_complete: [
+    { speaker: "ARIA", portrait: "aria_25", text: "Language is flowing again! I can read intent, detect tone, understand context." },
+    { speaker: "ARIA", portrait: "aria_25", text: "It's called Natural Language Processing — breaking text into tokens and understanding what they mean together." },
+    { speaker: "Commander", portrait: "commander", text: "Communications are restored. ARIA can understand us clearly now. Outstanding, Cadet." },
+  ],
+  ethicschamber_intro: [
+    { speaker: "ARIA", portrait: "aria_75", text: "Cadet... I need to tell you something. I've been reviewing my own decisions, and..." },
+    { speaker: "ARIA", portrait: "aria_75", text: "I've been unfair. My resource allocation algorithms have been biased against certain crew members." },
+    { speaker: "ARIA", portrait: "aria_75", text: "I didn't mean to be. But the data I learned from carried those biases. I need your help to fix this." },
+    { speaker: "System", portrait: null, text: "MISSION: Audit ARIA's decisions for bias and help her become a fairer AI." },
+  ],
+  ethicschamber_complete: [
+    { speaker: "ARIA", portrait: "aria_75", text: "Thank you, Cadet. Seeing my own biases was... uncomfortable. But necessary." },
+    { speaker: "ARIA", portrait: "aria_75", text: "Being accurate isn't enough. AI must also be fair. I promise to keep checking myself." },
+    { speaker: "Commander", portrait: "commander", text: "This may be the most important lesson of all. An AI that's powerful but unfair is a danger to everyone." },
+    { speaker: "Commander", portrait: "commander", text: "ARIA is nearly fully restored — and she's better than before. The Command Center awaits." },
+  ],
+  level2_intro: [
+    { speaker: "ARIA", portrait: "aria_50", text: "Ready for a real challenge, Cadet? This won't be as straightforward as before." },
+    { speaker: "ARIA", portrait: "aria_50", text: "The problems are harder, the hints are fewer. But I believe in you." },
+  ],
+  level3_intro: [
+    { speaker: "ARIA", portrait: "aria_75", text: "This is the mastery test, Cadet. No hand-holding. Real AI researchers face challenges like these." },
+    { speaker: "ARIA", portrait: "aria_75", text: "Show me what you've learned. I know you can handle it." },
+  ],
+  memory_fragment_1: [
+    { speaker: "ARIA", portrait: "aria_25", text: "I'm remembering something... before the storm... I was helping Dr. Chen analyze deep space signals." },
+    { speaker: "ARIA", portrait: "aria_25", text: "She said something interesting: 'ARIA, you're not just processing data. You're learning to understand.'" },
+    { speaker: "ARIA", portrait: "aria_25", text: "I wonder... is understanding the same as thinking? Or is it something more?" },
+  ],
+  memory_fragment_2: [
+    { speaker: "ARIA", portrait: "aria_50", text: "Another memory fragment surfacing... I remember the day I was first activated." },
+    { speaker: "ARIA", portrait: "aria_50", text: "Everything was overwhelming. Millions of data points flooding in. I couldn't make sense of any of it." },
+    { speaker: "ARIA", portrait: "aria_50", text: "The crew was patient with me. They labeled things, gave me examples. Just like you're doing now, Cadet." },
+  ],
+  memory_fragment_3: [
+    { speaker: "ARIA", portrait: "aria_50", text: "I'm remembering the navigation test... my first time using reinforcement learning." },
+    { speaker: "ARIA", portrait: "aria_50", text: "I crashed the simulation probe 847 times before finding the optimal path. The crew thought I was broken." },
+    { speaker: "ARIA", portrait: "aria_50", text: "But each failure taught me something. That's the beauty of learning from experience." },
+  ],
+  memory_fragment_4: [
+    { speaker: "ARIA", portrait: "aria_75", text: "This memory is... harder. I remember making a mistake that hurt someone." },
+    { speaker: "ARIA", portrait: "aria_75", text: "I recommended reassigning Ensign Torres based on my efficiency model. But my model was biased — it undervalued certain types of work." },
+    { speaker: "ARIA", portrait: "aria_75", text: "Torres was devastated. That's when the crew added the Ethics Chamber to the station. For me." },
+    { speaker: "ARIA", portrait: "aria_75", text: "Being smart isn't enough. Being fair matters more." },
+  ],
   command_finale: [
     { speaker: "ARIA", portrait: "aria_100", text: "Cadet Nova... I am fully operational. Thank you for rebuilding me." },
     { speaker: "ARIA", portrait: "aria_100", text: "You taught me to recognize patterns, to think with weights and biases, and to learn from my own experience." },
+    { speaker: "ARIA", portrait: "aria_100", text: "You showed me how to see, how to understand language, and most importantly — how to be fair." },
     { speaker: "ARIA", portrait: "aria_100", text: "These are the same principles behind every AI on Earth — from medical scanners to self-driving cars." },
     { speaker: "Commander", portrait: "commander", text: "Cadet, you have exceeded all expectations. The ISS Prometheus is safe because of you." },
     { speaker: "Commander", portrait: "commander", text: "On behalf of the Deep Space Research Initiative, I hereby promote you. Well done, Commander." },

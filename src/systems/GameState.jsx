@@ -2,6 +2,7 @@ import React, { createContext, useContext, useReducer } from "react";
 
 const initialState = {
   scene: "bridge",
+  playerName: "",
   xp: 0,
   totalStars: 0,
   stars: {},
@@ -131,6 +132,9 @@ function gameReducer(state, action) {
         codex: [...state.codex, { id, title, description, realWorld, rarity, icon }],
       };
     }
+
+    case "SET_PLAYER_NAME":
+      return { ...state, playerName: action.payload };
 
     case "UNLOCK_LEVEL": {
       const { mission, level } = action.payload;

@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import { useGame } from "../systems/GameState";
 
 const PORTRAITS = {
   commander: { emoji: "👨‍✈️", color: "#3b82f6" },
@@ -11,9 +12,14 @@ const PORTRAITS = {
 };
 
 export default function DialogueBox({ dialogue, onComplete }) {
+  const { state } = useGame();
   const [lineIndex, setLineIndex] = useState(0);
   const [displayedText, setDisplayedText] = useState("");
   const [isTyping, setIsTyping] = useState(true);
+
+  const playerName = state.playerName || "Cadet";
+  const personalize = (text) =>
+    text.replace(/Cadet Nova/g, playerName).replace(/\bCadet\b/g, playerName);
 
   const currentLine = dialogue?.[lineIndex];
 
@@ -26,12 +32,13 @@ export default function DialogueBox({ dialogue, onComplete }) {
 
   useEffect(() => {
     if (!currentLine) return;
+    const fullText = personalize(currentLine.text);
     setDisplayedText("");
     setIsTyping(true);
     let i = 0;
     const interval = setInterval(() => {
-      if (i < currentLine.text.length) {
-        setDisplayedText(currentLine.text.slice(0, i + 1));
+      if (i < fullText.length) {
+        setDisplayedText(fullText.slice(0, i + 1));
         i++;
       } else {
         setIsTyping(false);
@@ -39,13 +46,13 @@ export default function DialogueBox({ dialogue, onComplete }) {
       }
     }, 30);
     return () => clearInterval(interval);
-  }, [lineIndex, currentLine]);
+  }, [lineIndex, currentLine, playerName]);
 
   if (!dialogue || !currentLine) return null;
 
   const handleAdvance = (nextKey) => {
     if (isTyping) {
-      setDisplayedText(currentLine.text);
+      setDisplayedText(personalize(currentLine.text));
       setIsTyping(false);
       return;
     }
@@ -68,14 +75,16 @@ export default function DialogueBox({ dialogue, onComplete }) {
       animate={{ y: 0, opacity: 1 }}
       exit={{ y: 50, opacity: 0 }}
       style={{
-        position: "fixed", bottom: "24px", left: "50%", transform: "translateX(-50%)",
+        position: "fixed", bottom: "24px", left: 0, right: 0,
         width: "min(90vw, 800px)",
+        margin: "0 auto",
         background: "rgba(5, 5, 16, 0.95)",
         border: "2px solid rgba(139, 92, 246, 0.4)",
         borderRadius: "16px",
         padding: "24px",
         zIndex: 150,
         cursor: "pointer",
+        boxSizing: "border-box",
       }}
       onClick={() => !currentLine.choices && handleAdvance(null)}
     >
