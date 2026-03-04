@@ -1,8 +1,10 @@
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useGame } from "../systems/GameState";
 import { playSound } from "../systems/SoundManager";
 import { MISSIONS, CONCEPT_CARDS } from "../systems/MissionConfig";
+import AriaInsight from "../ui/AriaInsight";
+import { useI18n } from "../systems/I18nContext";
 
 /* ---------- Constants ---------- */
 const INPUT_LABELS = ["VISUAL DATA", "MOTION DATA", "AUDIO DATA"];
@@ -79,7 +81,7 @@ function getCardsForLevel(level) {
 
 /* ---------- Sub-components ---------- */
 
-function GuideArrow({ visible, direction }) {
+function GuideArrow({ visible, direction, t }) {
   if (!visible) return null;
   return (
     <motion.div
@@ -93,12 +95,12 @@ function GuideArrow({ visible, direction }) {
         pointerEvents: "none", letterSpacing: "0.05em",
       }}
     >
-      {direction === "up" ? "Try increasing this \u2191" : "Try moving this \u2192"}
+      {direction === "up" ? t("labs.wiring.guideUp") : t("labs.wiring.guideRight")}
     </motion.div>
   );
 }
 
-function PrecisionIndicator({ outputPercent, targetRange }) {
+function PrecisionIndicator({ outputPercent, targetRange, t }) {
   const [lo, hi] = targetRange;
   const center = (lo + hi) / 2;
   const inRange = outputPercent >= lo && outputPercent <= hi;
@@ -116,10 +118,10 @@ function PrecisionIndicator({ outputPercent, targetRange }) {
         marginBottom: "12px",
       }}>
         <span style={{ fontSize: "0.7rem", fontWeight: 700, color: "#e2e8f0", letterSpacing: "0.1em" }}>
-          PRECISION INDICATOR
+          {t("labs.wiring.precisionIndicator")}
         </span>
         <span style={{ fontSize: "0.75rem", fontWeight: 800, color: inRange ? "#10b981" : "#f43f5e" }}>
-          {inRange ? "IN RANGE" : `${distance.toFixed(1)}% from center`}
+          {inRange ? t("labs.wiring.inRange") : t("labs.wiring.fromCenter", { distance: distance.toFixed(1) })}
         </span>
       </div>
 
@@ -164,7 +166,7 @@ function PrecisionIndicator({ outputPercent, targetRange }) {
   );
 }
 
-function NeuronDiagram({ inputValues, weights, output, outputPercent, getColor, pulseKey, hasBias, level }) {
+function NeuronDiagram({ inputValues, weights, output, outputPercent, getColor, pulseKey, hasBias, level, t }) {
   const wireColor = (w) => (w > 0 ? "#8b5cf6" : "#f43f5e");
   const wireOpacity = (w) => Math.abs(w) * 0.8 + 0.2;
   const count = inputValues.length;
@@ -227,7 +229,7 @@ function NeuronDiagram({ inputValues, weights, output, outputPercent, getColor, 
             fontWeight: 700, letterSpacing: "0.1em", textAlign: "center",
           }}>
             <div style={{ fontSize: "1.2rem", marginBottom: "2px" }}>{INPUT_ICONS[i]}</div>
-            {INPUT_LABELS[i]}
+            {t(`labs.wiring.inputLabel.${i}`)}
           </div>
         ))}
       </div>
@@ -276,6 +278,7 @@ function StarDisplay({ stars, maxStars = 3 }) {
 
 export default function SynapticWiring({ level = 1, onComplete }) {
   const { dispatch } = useGame();
+  const { t } = useI18n();
   const levelConfig = MISSIONS.neuralcore.levels[level];
   const { weightCount, hasBias } = levelConfig;
   const target = levelConfig.target || null;
@@ -291,10 +294,32 @@ export default function SynapticWiring({ level = 1, onComplete }) {
   const [guidesVisible, setGuidesVisible] = useState(level === 1);
   const adjustedRef = useRef(new Set());
 
+  const [insights, setInsights] = useState([]);
+  const firedInsights = useRef(new Set());
+  const pushOnce = useCallback((key, msg) => {
+    if (firedInsights.current.has(key)) return;
+    firedInsights.current.add(key);
+    setInsights((prev) => [...prev, { id: key, message: msg }]);
+  }, []);
+  const dismissInsight = useCallback((id) => {
+    setInsights((prev) => prev.filter((i) => i.id !== id));
+  }, []);
+
   const output = calcSigmoid(inputValues, weights, hasBias);
   const outputPercent = Math.round(output * 100);
   const activated = checkActivated(level, levelConfig, outputPercent);
   const earnedStars = calcStars(level, levelConfig, outputPercent);
+
+  // Milestone insights
+  if (outputPercent >= 50 && outputPercent < 90) {
+    pushOnce("sigmoid50", t("labs.wiring.insight.sigmoid50"));
+  }
+  if (outputPercent > 90) {
+    pushOnce("precision90", t("labs.wiring.insight.precision90"));
+  }
+  if (level === 3 && targetRange && outputPercent >= targetRange[0] && outputPercent <= targetRange[1]) {
+    pushOnce("l3precision", t("labs.wiring.insight.l3precision"));
+  }
 
   const getColor = () => {
     if (level === 3) {
@@ -354,18 +379,16 @@ export default function SynapticWiring({ level = 1, onComplete }) {
 
   const getButtonText = () => {
     if (level === 3) {
-      if (activated) return "ACTIVATE NEURAL CORE";
-      if (outputPercent < targetRange[0]) return `OUTPUT MUST BE \u2265 ${targetRange[0]}%`;
-      if (outputPercent > targetRange[1]) return `OUTPUT MUST BE \u2264 ${targetRange[1]}%`;
-      return `TARGET: ${targetRange[0]}\u2013${targetRange[1]}%`;
+      if (activated) return t("labs.wiring.activateCore");
+      if (outputPercent < targetRange[0]) return t("labs.wiring.outputMustBeAbove", { min: targetRange[0] });
+      if (outputPercent > targetRange[1]) return t("labs.wiring.outputMustBeBelow", { max: targetRange[1] });
+      return t("labs.wiring.targetRange", { min: targetRange[0], max: targetRange[1] });
     }
-    return activated ? "ACTIVATE NEURAL CORE" : `OUTPUT MUST EXCEED ${target}%`;
+    return activated ? t("labs.wiring.activateCore") : t("labs.wiring.outputMustExceed", { target });
   };
 
   const getHintText = () => {
-    if (level === 1) return "Increase the weights to strengthen connections. Positive weights activate the neuron, negative weights inhibit it. Try pushing the weights higher!";
-    if (level === 2) return "You now have a bias slider — it shifts the output baseline. Balance all three to exceed 80% without overshooting past 98%.";
-    return "Precision matters! You need to land in the 75–85% range. Too high or too low won't count. Aim for 80% for the best score.";
+    return t(`labs.wiring.hint.${level}`);
   };
 
   /* ═══════════════════════════ COMPLETION SCREEN ═══════════════════════════════ */
@@ -387,12 +410,10 @@ export default function SynapticWiring({ level = 1, onComplete }) {
         </motion.div>
 
         <h2 style={{ fontSize: "1.8rem", fontWeight: 900, color: "#f8fafc", marginBottom: "8px" }}>
-          NEURAL CORE ONLINE
+          {t("labs.wiring.complete")}
         </h2>
         <p style={{ color: "#94a3b8", fontSize: "1rem", maxWidth: "500px", margin: "0 auto 24px" }}>
-          {level === 1 && "ARIA's basic thinking circuits are restored. You found the right combination of weights!"}
-          {level === 2 && "ARIA's advanced neural pathways are calibrated. Bias and weights working in harmony."}
-          {level === 3 && "ARIA's precision neural network is perfectly tuned. Master-level control achieved!"}
+          {t(`labs.wiring.completeMsg.${level}`)}
         </p>
 
         <StarDisplay stars={stars} />
@@ -400,18 +421,18 @@ export default function SynapticWiring({ level = 1, onComplete }) {
         <div style={{ display: "flex", justifyContent: "center", gap: "32px", marginBottom: "24px" }}>
           <div>
             <div style={{ fontSize: "2rem", fontWeight: 900, color: "#8b5cf6" }}>{outputPercent}%</div>
-            <div style={{ fontSize: "0.7rem", color: "#94a3b8" }}>FINAL OUTPUT</div>
+            <div style={{ fontSize: "0.7rem", color: "#94a3b8" }}>{t("common.finalOutput")}</div>
           </div>
           <div>
             <div style={{ fontSize: "2rem", fontWeight: 900, color: "#fbbf24" }}>{stars}/3</div>
-            <div style={{ fontSize: "0.7rem", color: "#94a3b8" }}>STARS EARNED</div>
+            <div style={{ fontSize: "0.7rem", color: "#94a3b8" }}>{t("common.starsEarned")}</div>
           </div>
           {level === 3 && (
             <div>
               <div style={{ fontSize: "2rem", fontWeight: 900, color: Math.abs(outputPercent - 80) <= 5 ? "#10b981" : "#f43f5e" }}>
                 {Math.abs(outputPercent - 80)}%
               </div>
-              <div style={{ fontSize: "0.7rem", color: "#94a3b8" }}>FROM CENTER</div>
+              <div style={{ fontSize: "0.7rem", color: "#94a3b8" }}>{t("common.fromCenter")}</div>
             </div>
           )}
         </div>
@@ -419,7 +440,7 @@ export default function SynapticWiring({ level = 1, onComplete }) {
         {cards.length > 0 && (
           <div style={{ marginBottom: "24px" }}>
             <div style={{ fontSize: "0.7rem", color: "#64748b", letterSpacing: "0.15em", marginBottom: "12px" }}>
-              CONCEPT CARDS EARNED
+              {t("common.conceptCardsEarned")}
             </div>
             <div style={{ display: "flex", justifyContent: "center", gap: "12px", flexWrap: "wrap" }}>
               {cards.map((card) => (
@@ -439,7 +460,7 @@ export default function SynapticWiring({ level = 1, onComplete }) {
                   <span style={{ fontSize: "1.2rem" }}>{card.icon}</span>
                   <div style={{ textAlign: "left" }}>
                     <div style={{ fontSize: "0.75rem", fontWeight: 700, color: "#e2e8f0" }}>{card.title}</div>
-                    <div style={{ fontSize: "0.6rem", color: "#94a3b8" }}>{card.rarity === "rare" ? "RARE" : "COMMON"}</div>
+                    <div style={{ fontSize: "0.6rem", color: "#94a3b8" }}>{card.rarity === "rare" ? t("common.rare") : t("common.common")}</div>
                   </div>
                 </motion.div>
               ))}
@@ -454,7 +475,7 @@ export default function SynapticWiring({ level = 1, onComplete }) {
             fontWeight: 800, cursor: "pointer", letterSpacing: "0.1em",
           }}
         >
-          RETURN TO STATION
+          {t("common.returnToStation")}
         </button>
       </motion.div>
     );
@@ -467,27 +488,25 @@ export default function SynapticWiring({ level = 1, onComplete }) {
       <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "32px" }}>
         <div>
           <h3 style={{ fontSize: "1.1rem", fontWeight: 800, letterSpacing: "0.1em", margin: 0 }}>
-            SYNAPTIC MATRIX
+            {t("labs.wiring.title")}
           </h3>
           <div style={{ fontSize: "0.75rem", color: "#64748b" }}>
-            {level === 1 && "Adjust weights to activate ARIA's neural core"}
-            {level === 2 && "Calibrate weights and bias for higher activation"}
-            {level === 3 && "Precision-tune the network to hit the target range"}
+            {t(`labs.wiring.subtitle.${level}`)}
           </div>
           <div style={{ marginTop: "4px", fontSize: "0.6rem", fontWeight: 700, color: "#a78bfa", letterSpacing: "0.15em" }}>
-            LEVEL {level} — {levelConfig.name.toUpperCase()}
+            {t("common.level")} {level} — {levelConfig.name.toUpperCase()}
           </div>
         </div>
         <div style={{ textAlign: "right" }}>
-          <div style={{ fontSize: "0.6rem", color: "#64748b", letterSpacing: "0.1em" }}>OUTPUT</div>
+          <div style={{ fontSize: "0.6rem", color: "#64748b", letterSpacing: "0.1em" }}>{t("labs.wiring.output")}</div>
           <div style={{ fontSize: "1.5rem", fontWeight: 900, color: getColor() }}>{outputPercent}%</div>
           <div style={{ fontSize: "0.6rem", color: "#64748b", marginTop: "2px" }}>
-            {level === 3 ? `TARGET: ${targetRange[0]}\u2013${targetRange[1]}%` : `TARGET: >${target}%`}
+            {level === 3 ? t("labs.wiring.targetRange", { min: targetRange[0], max: targetRange[1] }) : t("labs.wiring.target", { target })}
           </div>
         </div>
       </div>
 
-      {level === 3 && <PrecisionIndicator outputPercent={outputPercent} targetRange={targetRange} />}
+      {level === 3 && <PrecisionIndicator outputPercent={outputPercent} targetRange={targetRange} t={t} />}
 
       <AnimatePresence>
         {showOvershoot && (
@@ -504,7 +523,7 @@ export default function SynapticWiring({ level = 1, onComplete }) {
               display: "flex", alignItems: "center", gap: "8px",
             }}
           >
-            ⚠️ OVERSHOOT WARNING: Output above 98% wastes energy. Try to stay below that threshold.
+            {t("labs.wiring.overshootWarning")}
           </motion.div>
         )}
       </AnimatePresence>
@@ -518,6 +537,7 @@ export default function SynapticWiring({ level = 1, onComplete }) {
         pulseKey={pulseKey}
         hasBias={hasBias}
         level={level}
+        t={t}
       />
 
       <div style={{ display: "flex", justifyContent: "center", gap: "4px", marginBottom: "16px", fontSize: "1.2rem" }}>
@@ -552,7 +572,7 @@ export default function SynapticWiring({ level = 1, onComplete }) {
                 onChange={(e) => handleWeightChange(idx, parseFloat(e.target.value))}
                 style={{ width: "100%", accentColor: "#8b5cf6", cursor: "pointer" }}
               />
-              {showGuide && <GuideArrow visible direction={idx === 0 ? "up" : "right"} />}
+              {showGuide && <GuideArrow visible direction={idx === 0 ? "up" : "right"} t={t} />}
             </div>
           );
         })}
@@ -578,8 +598,10 @@ export default function SynapticWiring({ level = 1, onComplete }) {
         borderRadius: "10px", fontSize: "0.8rem",
         color: "#94a3b8", lineHeight: 1.5,
       }}>
-        <strong style={{ color: "#c4b5fd" }}>ARIA HINT:</strong> {getHintText()}
+        <strong style={{ color: "#c4b5fd" }}>{t("common.ariaHint")}</strong> {getHintText()}
       </div>
+
+      <AriaInsight insights={insights} onDismiss={dismissInsight} />
     </div>
   );
 }

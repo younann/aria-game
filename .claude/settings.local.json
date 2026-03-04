@@ -7,7 +7,25 @@
       "Bash(cat:*)",
       "Bash(git init:*)",
       "Bash(git add:*)",
-      "Bash(git commit:*)"
+      "Bash(git commit:*)",
+      "mcp__chrome-devtools__navigate_page",
+      "mcp__plugin_playwright_playwright__browser_navigate",
+      "mcp__plugin_playwright_playwright__browser_console_messages",
+      "mcp__plugin_playwright_playwright__browser_take_screenshot",
+      "mcp__plugin_playwright_playwright__browser_click",
+      "mcp__plugin_playwright_playwright__browser_evaluate",
+      "mcp__plugin_playwright_playwright__browser_run_code",
+      "mcp__plugin_playwright_playwright__browser_snapshot",
+      "Bash(npx vite build 2>&1 | tail -15)",
+      "Bash(npx vite build 2>&1 | tail -20)",
+      "Bash(npx vite build 2>&1 | tail -5)",
+      "Bash(npx vite --port 5174 2>&1 | head -10)",
+      "Bash(npx vite --port 5174 2>&1)",
+      "mcp__plugin_playwright_playwright__browser_type",
+      "mcp__plugin_playwright_playwright__browser_wait_for",
+      "Skill(commit-commands:commit)",
+      "Bash(npx vite build 2>&1)",
+      "Bash(wc -l /Users/younan.nwesre/Desktop/personal/aigame/src/labs/*.jsx | tail -1)"
     ]
   }
 }

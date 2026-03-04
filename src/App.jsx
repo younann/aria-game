@@ -1,8 +1,9 @@
-import React, { useState, useCallback, useRef, useEffect } from "react";
+import React, { useState, useCallback, useRef, useEffect, useMemo } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { useGame, RANKS } from "./systems/GameState";
-import { DIALOGUES } from "./systems/DialogueData";
+import { getDialogues } from "./systems/DialogueData";
 import { MISSIONS, UNLOCK_TREE } from "./systems/MissionConfig";
+import { I18nProvider, useI18n } from "./systems/I18nContext";
 import GameCanvas from "./engine/GameCanvas";
 import { buildStationHub } from "./engine/StationHub";
 import HUD from "./ui/HUD";
@@ -12,6 +13,7 @@ import MissionBriefing from "./ui/MissionBriefing";
 import LevelSelect from "./ui/LevelSelect";
 import RankCeremony from "./ui/RankCeremony";
 import Codex from "./ui/Codex";
+import CodexCardReveal from "./ui/CodexCardReveal";
 import SignalClassifier from "./labs/SignalClassifier";
 import SynapticWiring from "./labs/SynapticWiring";
 import AgentNavigator from "./labs/AgentNavigator";
@@ -66,7 +68,24 @@ function checkUnlocks(state) {
 }
 
 export default function App() {
+  const { state } = useGame();
+  return (
+    <I18nProvider lang={state.lang}>
+      <AppContent />
+    </I18nProvider>
+  );
+}
+
+const LANG_OPTIONS = [
+  { code: "en", label: "English" },
+  { code: "he", label: "\u05E2\u05D1\u05E8\u05D9\u05EA" },
+  { code: "ar", label: "\u0627\u0644\u0639\u0631\u0628\u064A\u0629" },
+];
+
+function AppContent() {
   const { state, dispatch } = useGame();
+  const { t, dir } = useI18n();
+  const dialogues = useMemo(() => getDialogues(t), [t]);
   // Phases: name_entry | bridge_intro | hub | level_select | dialogue | briefing | mission | mission_complete_dialogue | complete
   const [phase, setPhase] = useState("name_entry");
   const [currentDialogue, setCurrentDialogue] = useState(null);
@@ -81,13 +100,16 @@ export default function App() {
   const hubContainerRef = useRef(null);
   const [pixiReadyCounter, setPixiReadyCounter] = useState(0);
   const prevRankRef = useRef(getRankName(state.totalStars || 0));
+  const [codexCardQueue, setCodexCardQueue] = useState([]);
+  const [showingCodexCard, setShowingCodexCard] = useState(null);
+  const prevCodexLength = useRef(state.codex.length);
 
   const handleNameSubmit = useCallback(() => {
-    const name = nameInput.trim() || "Cadet Nova";
+    const name = nameInput.trim() || t("app.defaultName");
     dispatch({ type: "SET_PLAYER_NAME", payload: name });
-    setCurrentDialogue(DIALOGUES.bridge_intro);
+    setCurrentDialogue(dialogues.bridge_intro);
     setPhase("bridge_intro");
-  }, [nameInput, dispatch]);
+  }, [nameInput, dispatch, t, dialogues]);
 
   // Watch for new achievements
   const prevAchievements = useRef(state.achievements.length);
@@ -113,6 +135,22 @@ export default function App() {
       dispatch({ type: "UNLOCK_ROOM", payload: roomId });
     }
   }, [state.levelComplete, state.totalStars, state.unlockedRooms, dispatch]);
+
+  // Watch for new codex cards
+  useEffect(() => {
+    if (state.codex.length > prevCodexLength.current) {
+      const newCards = state.codex.slice(prevCodexLength.current);
+      setCodexCardQueue((q) => [...q, ...newCards]);
+    }
+    prevCodexLength.current = state.codex.length;
+  }, [state.codex]);
+
+  useEffect(() => {
+    if (codexCardQueue.length > 0 && !showingCodexCard) {
+      setShowingCodexCard(codexCardQueue[0]);
+      setCodexCardQueue((q) => q.slice(1));
+    }
+  }, [codexCardQueue, showingCodexCard]);
 
   // Detect rank changes
   useEffect(() => {
@@ -152,8 +190,8 @@ export default function App() {
 
     if (roomId === "command") {
       const flow = MISSION_FLOW.command;
-      if (DIALOGUES[flow.introDialogue]) {
-        setCurrentDialogue(DIALOGUES[flow.introDialogue]);
+      if (dialogues[flow.introDialogue]) {
+        setCurrentDialogue(dialogues[flow.introDialogue]);
         setPhase("dialogue");
       } else {
         setPhase("complete");
@@ -163,7 +201,7 @@ export default function App() {
 
     // All other missions: go to level select
     setPhase("level_select");
-  }, []);
+  }, [dialogues]);
 
   const handleLevelSelect = useCallback((level) => {
     setCurrentLevel(level);
@@ -172,8 +210,8 @@ export default function App() {
 
     // Show intro dialogue on first visit to this mission
     const hasCompletedAny = Object.keys(state.levelComplete?.[missionId] || {}).length > 0;
-    if (!hasCompletedAny && flow?.introDialogue && DIALOGUES[flow.introDialogue]) {
-      setCurrentDialogue(DIALOGUES[flow.introDialogue]);
+    if (!hasCompletedAny && flow?.introDialogue && dialogues[flow.introDialogue]) {
+      setCurrentDialogue(dialogues[flow.introDialogue]);
       setPhase("dialogue");
       return;
     }
@@ -181,8 +219,8 @@ export default function App() {
     // Show level-specific dialogue for L2/L3 if available
     if (level > 1) {
       const levelDialogueKey = `level${level}_intro`;
-      if (DIALOGUES[levelDialogueKey]) {
-        setCurrentDialogue(DIALOGUES[levelDialogueKey]);
+      if (dialogues[levelDialogueKey]) {
+        setCurrentDialogue(dialogues[levelDialogueKey]);
         setPhase("dialogue");
         return;
       }
@@ -190,7 +228,7 @@ export default function App() {
 
     // No dialogue — straight to briefing
     setPhase("briefing");
-  }, [currentMission, state.levelComplete]);
+  }, [currentMission, state.levelComplete, dialogues]);
 
   const handleLevelSelectBack = useCallback(() => {
     setCurrentMission(null);
@@ -198,8 +236,8 @@ export default function App() {
   }, []);
 
   const handleDialogueComplete = useCallback((nextKey) => {
-    if (nextKey && DIALOGUES[nextKey]) {
-      setCurrentDialogue(DIALOGUES[nextKey]);
+    if (nextKey && dialogues[nextKey]) {
+      setCurrentDialogue(dialogues[nextKey]);
       return;
     }
 
@@ -226,7 +264,7 @@ export default function App() {
       setPhase("hub");
       return;
     }
-  }, [phase, currentMission, dispatch]);
+  }, [phase, currentMission, dispatch, dialogues]);
 
   const handleMissionStart = useCallback(() => {
     setPhase("mission");
@@ -234,14 +272,14 @@ export default function App() {
 
   const handleMissionComplete = useCallback((result) => {
     const flow = MISSION_FLOW[currentMission];
-    if (flow?.completeDialogue && DIALOGUES[flow.completeDialogue]) {
-      setCurrentDialogue(DIALOGUES[flow.completeDialogue]);
+    if (flow?.completeDialogue && dialogues[flow.completeDialogue]) {
+      setCurrentDialogue(dialogues[flow.completeDialogue]);
       setPhase("mission_complete_dialogue");
     } else {
       setCurrentMission(null);
       setPhase("hub");
     }
-  }, [currentMission]);
+  }, [currentMission, dialogues]);
 
   const handleRankCeremonyDismiss = useCallback(() => {
     setRankCeremonyData(null);
@@ -268,7 +306,7 @@ export default function App() {
   };
 
   return (
-    <div style={{
+    <div dir={dir} style={{
       minHeight: "100vh",
       display: "flex",
       flexDirection: "column",
@@ -292,38 +330,51 @@ export default function App() {
           animate={{ opacity: 1 }}
           style={{ textAlign: "center", maxWidth: "500px" }}
         >
-          <motion.div
-            animate={{ scale: [1, 1.05, 1], opacity: [0.7, 1, 0.7] }}
+          <motion.img
+            src="/logo.png"
+            alt="ARIA — Learn AI, Play & Explore"
+            animate={{ scale: [1, 1.03, 1] }}
             transition={{ duration: 4, repeat: Infinity }}
-            style={{ fontSize: "6rem", marginBottom: "24px" }}
-          >
-            🧠
-          </motion.div>
-          <h1 style={{
-            fontSize: "3.5rem", fontWeight: 900, marginBottom: "12px",
-            background: "linear-gradient(135deg, #8b5cf6, #06b6d4)",
-            backgroundClip: "text", WebkitBackgroundClip: "text",
-            WebkitTextFillColor: "transparent",
-          }}>
-            NEURAL QUEST
-          </h1>
+            style={{ width: "280px", marginBottom: "24px", filter: "drop-shadow(0 0 24px rgba(139,92,246,0.3))" }}
+          />
           <p style={{ color: "#94a3b8", fontSize: "1.1rem", lineHeight: 1.7, marginBottom: "32px" }}>
-            The ISS Prometheus needs you. An AI named ARIA has been damaged by a cosmic storm.
-            Repair her, and learn how artificial intelligence really works.
+            {t("app.intro")}
           </p>
+          {/* Language selector */}
+          <div style={{ display: "flex", justifyContent: "center", gap: "8px", marginBottom: "24px" }}>
+            {LANG_OPTIONS.map((opt) => (
+              <button
+                key={opt.code}
+                onClick={() => dispatch({ type: "SET_LANGUAGE", payload: opt.code })}
+                style={{
+                  padding: "8px 20px",
+                  fontSize: "0.85rem",
+                  fontWeight: 700,
+                  background: state.lang === opt.code ? "rgba(139,92,246,0.2)" : "rgba(255,255,255,0.03)",
+                  border: state.lang === opt.code ? "2px solid #8b5cf6" : "2px solid rgba(255,255,255,0.1)",
+                  borderRadius: "8px",
+                  color: state.lang === opt.code ? "#c4b5fd" : "#64748b",
+                  cursor: "pointer",
+                  transition: "all 0.2s",
+                }}
+              >
+                {opt.label}
+              </button>
+            ))}
+          </div>
           <div style={{ marginBottom: "24px" }}>
             <label style={{
               display: "block", fontSize: "0.75rem", color: "#64748b",
               letterSpacing: "0.15em", textTransform: "uppercase", marginBottom: "12px",
             }}>
-              ENTER YOUR NAME, CADET
+              {t("app.enterName")}
             </label>
             <input
               type="text"
               value={nameInput}
               onChange={(e) => setNameInput(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && handleNameSubmit()}
-              placeholder="Cadet Nova"
+              placeholder={t("app.namePlaceholder")}
               maxLength={20}
               autoFocus
               style={{
@@ -354,7 +405,7 @@ export default function App() {
               cursor: "pointer",
             }}
           >
-            BEGIN MISSION
+            {t("app.beginMission")}
           </button>
         </motion.div>
       )}
@@ -366,24 +417,15 @@ export default function App() {
           animate={{ opacity: 1 }}
           style={{ textAlign: "center", maxWidth: "700px" }}
         >
-          <motion.div
-            animate={{ scale: [1, 1.05, 1], opacity: [0.7, 1, 0.7] }}
+          <motion.img
+            src="/logo.png"
+            alt="ARIA — Learn AI, Play & Explore"
+            animate={{ scale: [1, 1.03, 1] }}
             transition={{ duration: 4, repeat: Infinity }}
-            style={{ fontSize: "6rem", marginBottom: "24px" }}
-          >
-            🧠
-          </motion.div>
-          <h1 style={{
-            fontSize: "3.5rem", fontWeight: 900, marginBottom: "12px",
-            background: "linear-gradient(135deg, #8b5cf6, #06b6d4)",
-            backgroundClip: "text", WebkitBackgroundClip: "text",
-            WebkitTextFillColor: "transparent",
-          }}>
-            NEURAL QUEST
-          </h1>
+            style={{ width: "280px", marginBottom: "24px", filter: "drop-shadow(0 0 24px rgba(139,92,246,0.3))" }}
+          />
           <p style={{ color: "#94a3b8", fontSize: "1.1rem", lineHeight: 1.7, marginBottom: "40px" }}>
-            The ISS Prometheus needs you. An AI named ARIA has been damaged by a cosmic storm.
-            Repair her, and learn how artificial intelligence really works.
+            {t("app.intro")}
           </p>
           <GameCanvas onAppReady={handlePixiReady} width={960} height={700} />
         </motion.div>
@@ -400,7 +442,7 @@ export default function App() {
             fontSize: "0.7rem", color: "#64748b", letterSpacing: "0.2em",
             marginBottom: "16px",
           }}>
-            SELECT A ROOM TO ENTER
+            {t("app.selectRoom")}
           </div>
           <GameCanvas onAppReady={handlePixiReady} width={960} height={700} />
         </motion.div>
@@ -476,6 +518,14 @@ export default function App() {
 
       {/* Codex Panel */}
       <Codex isOpen={codexOpen} onClose={() => setCodexOpen(false)} />
+
+      {/* Codex Card Reveal */}
+      {showingCodexCard && (
+        <CodexCardReveal
+          card={showingCodexCard}
+          onDismiss={() => setShowingCodexCard(null)}
+        />
+      )}
 
       {/* Rank Ceremony Overlay */}
       <AnimatePresence>

@@ -3,6 +3,8 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useGame } from "../systems/GameState";
 import { playSound } from "../systems/SoundManager";
 import { MISSIONS, CONCEPT_CARDS } from "../systems/MissionConfig";
+import AriaInsight from "../ui/AriaInsight";
+import { useI18n } from "../systems/I18nContext";
 
 /* -- Pre-placed grid for L1 Tutorial -------------------------------- */
 function generatePrePlacedGrid(size) {
@@ -66,6 +68,7 @@ function getConceptCardsForLevel(level) {
 
 export default function AgentNavigator({ level = 1, onComplete }) {
   const { dispatch } = useGame();
+  const { t } = useI18n();
 
   const levelConfig = MISSIONS.simdeck.levels[level];
   const SIZE = levelConfig.gridSize;
@@ -84,6 +87,18 @@ export default function AgentNavigator({ level = 1, onComplete }) {
   const [done, setDone] = useState(false);
   const [earnedStars, setEarnedStars] = useState(0);
   const [pathHistory, setPathHistory] = useState([]);
+  const [explorationRate, setExplorationRate] = useState(0.75);
+
+  const [insights, setInsights] = useState([]);
+  const firedInsights = useRef(new Set());
+  const pushOnce = useCallback((key, msg) => {
+    if (firedInsights.current.has(key)) return;
+    firedInsights.current.add(key);
+    setInsights((prev) => [...prev, { id: key, message: msg }]);
+  }, []);
+  const dismissInsight = useCallback((id) => {
+    setInsights((prev) => prev.filter((i) => i.id !== id));
+  }, []);
 
   const awardedCards = useRef(new Set());
 
@@ -132,13 +147,13 @@ export default function AgentNavigator({ level = 1, onComplete }) {
       if (col > 0) moves.push(current - 1);
       if (col < SIZE - 1) moves.push(current + 1);
 
-      const explorationRate = Math.max(0.1, 0.75 - episodes * 0.08);
+      const rate = Math.max(0.1, 0.75 - episodes * 0.08);
       const best = moves.reduce((a, b) => {
         const scoreA = grid[a] + (a === GOAL ? 10 : 0);
         const scoreB = grid[b] + (b === GOAL ? 10 : 0);
         return scoreB > scoreA ? b : a;
       });
-      const next = Math.random() < explorationRate
+      const next = Math.random() < rate
         ? moves[Math.floor(Math.random() * moves.length)]
         : best;
 
@@ -167,14 +182,27 @@ export default function AgentNavigator({ level = 1, onComplete }) {
     }
     setTotalReward((r) => r + reward);
     setEpisodes((e) => e + 1);
+    setExplorationRate(Math.max(0.1, 0.75 - (episodes + 1) * 0.08));
     dispatch({ type: "ADD_XP", payload: 5 });
+
+    // AriaInsight triggers
+    if (reachedGoalThisEpisode) {
+      pushOnce("firstgoal", t("labs.navigator.insight.firstGoal"));
+    }
+    if (!reachedGoalThisEpisode && reward < 0) {
+      pushOnce("asteroid", t("labs.navigator.insight.asteroid"));
+    }
+    const nextRate = Math.max(0.1, 0.75 - (episodes + 1) * 0.08);
+    if (nextRate < 0.3) {
+      pushOnce("lowexplore", t("labs.navigator.insight.lowExplore"));
+    }
 
     if (levelConfig.movingObstacles) {
       setGrid((g) => shiftObstacles(g, SIZE));
     }
 
     setRunning(false);
-  }, [running, grid, episodes, SIZE, START, GOAL, dispatch, levelConfig.movingObstacles]);
+  }, [running, grid, episodes, SIZE, START, GOAL, dispatch, levelConfig.movingObstacles, pushOnce]);
 
   const calculateStars = useCallback(() => {
     const thresholds = levelConfig.starThresholds;
@@ -237,10 +265,10 @@ export default function AgentNavigator({ level = 1, onComplete }) {
       >
         <div style={{ fontSize: "4rem", marginBottom: "16px" }}>🚀</div>
         <h2 style={{ fontSize: "1.8rem", fontWeight: 900, color: "#f8fafc", marginBottom: "8px" }}>
-          NAVIGATION TRAINING COMPLETE
+          {t("labs.navigator.completeTitle")}
         </h2>
         <div style={{ fontSize: "0.85rem", color: "#64748b", marginBottom: "24px", textTransform: "uppercase", letterSpacing: "0.1em" }}>
-          Level {level} — {levelConfig.name}
+          {t("common.level")} {level} — {levelConfig.name}
         </div>
 
         <div style={{ display: "flex", gap: "8px", justifyContent: "center", marginBottom: "24px" }}>
@@ -263,16 +291,16 @@ export default function AgentNavigator({ level = 1, onComplete }) {
         <div style={{ display: "flex", justifyContent: "center", gap: "32px", margin: "32px 0" }}>
           <div>
             <div style={{ fontSize: "2rem", fontWeight: 900, color: "#f97316" }}>{episodes}</div>
-            <div style={{ fontSize: "0.7rem", color: "#94a3b8" }}>EPISODES</div>
+            <div style={{ fontSize: "0.7rem", color: "#94a3b8" }}>{t("labs.navigator.episodes")}</div>
           </div>
           <div>
             <div style={{ fontSize: "2rem", fontWeight: 900, color: "#10b981" }}>{totalReward.toFixed(0)}</div>
-            <div style={{ fontSize: "0.7rem", color: "#94a3b8" }}>TOTAL REWARD</div>
+            <div style={{ fontSize: "0.7rem", color: "#94a3b8" }}>{t("labs.navigator.totalReward")}</div>
           </div>
           {level === 3 && (
             <div>
               <div style={{ fontSize: "2rem", fontWeight: 900, color: "#8b5cf6" }}>{goalReaches}</div>
-              <div style={{ fontSize: "0.7rem", color: "#94a3b8" }}>GOAL REACHES</div>
+              <div style={{ fontSize: "0.7rem", color: "#94a3b8" }}>{t("labs.navigator.goalReaches")}</div>
             </div>
           )}
         </div>
@@ -280,7 +308,7 @@ export default function AgentNavigator({ level = 1, onComplete }) {
         {getConceptCardsForLevel(level).length > 0 && (
           <div style={{ marginBottom: "24px" }}>
             <div style={{ fontSize: "0.7rem", color: "#64748b", marginBottom: "8px", letterSpacing: "0.1em" }}>
-              CODEX CARDS EARNED
+              {t("common.codexCardsEarned")}
             </div>
             <div style={{ display: "flex", justifyContent: "center", gap: "12px", flexWrap: "wrap" }}>
               {getConceptCardsForLevel(level).map((card) => (
@@ -299,7 +327,7 @@ export default function AgentNavigator({ level = 1, onComplete }) {
                   <span style={{ marginRight: "6px" }}>{card.icon}</span>
                   {card.title}
                   {card.rarity === "rare" && (
-                    <span style={{ marginLeft: "8px", fontSize: "0.6rem", color: "#a78bfa", fontWeight: 700 }}>RARE</span>
+                    <span style={{ marginLeft: "8px", fontSize: "0.6rem", color: "#a78bfa", fontWeight: 700 }}>{t("common.rare")}</span>
                   )}
                 </motion.div>
               ))}
@@ -314,7 +342,7 @@ export default function AgentNavigator({ level = 1, onComplete }) {
             fontWeight: 800, cursor: "pointer", letterSpacing: "0.05em",
           }}
         >
-          RETURN TO STATION
+          {t("common.returnToStation")}
         </button>
       </motion.div>
     );
@@ -327,31 +355,37 @@ export default function AgentNavigator({ level = 1, onComplete }) {
       <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "24px", alignItems: "flex-start" }}>
         <div>
           <h3 style={{ fontSize: "1.1rem", fontWeight: 800, letterSpacing: "0.1em", margin: 0 }}>
-            ASTEROID FIELD
+            {t("labs.navigator.title")}
           </h3>
           <div style={{ fontSize: "0.75rem", color: "#64748b", marginTop: "4px" }}>
             {levelConfig.prePlaced
-              ? "Grid is pre-configured — deploy ARIA and watch her learn!"
-              : "Place fuel cells and asteroids, then deploy ARIA"}
+              ? t("labs.navigator.instructionPrePlaced")
+              : t("labs.navigator.instructionPlace")}
           </div>
           <div style={{ fontSize: "0.65rem", color: "#475569", marginTop: "2px", textTransform: "uppercase", letterSpacing: "0.08em" }}>
-            Level {level} — {levelConfig.name} — {SIZE}x{SIZE} grid
+            {t("common.level")} {level} — {levelConfig.name} — {SIZE}x{SIZE} grid
           </div>
         </div>
         <div style={{ display: "flex", gap: "24px", textAlign: "right" }}>
           <div>
-            <div style={{ fontSize: "0.6rem", color: "#64748b" }}>EPISODES</div>
+            <div style={{ fontSize: "0.6rem", color: "#64748b" }}>{t("labs.navigator.episodes")}</div>
             <div style={{ fontWeight: 800, color: "#f97316" }}>
               {episodes}<span style={{ color: "#475569", fontWeight: 400 }}>/{levelConfig.minEpisodes}</span>
             </div>
           </div>
           <div>
-            <div style={{ fontSize: "0.6rem", color: "#64748b" }}>REWARD</div>
+            <div style={{ fontSize: "0.6rem", color: "#64748b" }}>{t("labs.navigator.reward")}</div>
             <div style={{ fontWeight: 800 }}>{totalReward.toFixed(0)}</div>
+          </div>
+          <div>
+            <div style={{ fontSize: "0.6rem", color: "#64748b" }}>{t("labs.navigator.exploreRate")}</div>
+            <div style={{ fontWeight: 800, color: explorationRate > 0.4 ? "#f97316" : "#10b981" }}>
+              {Math.round(explorationRate * 100)}%
+            </div>
           </div>
           {level === 3 && (
             <div>
-              <div style={{ fontSize: "0.6rem", color: "#64748b" }}>GOAL REACHED</div>
+              <div style={{ fontSize: "0.6rem", color: "#64748b" }}>{t("labs.navigator.goalReached")}</div>
               <div style={{ fontWeight: 800, color: goalReaches >= 3 ? "#10b981" : "#8b5cf6" }}>
                 {goalReaches}/3
               </div>
@@ -390,7 +424,7 @@ export default function AgentNavigator({ level = 1, onComplete }) {
                 position: "relative", fontSize: cellFontSize,
               }}
             >
-              {isStart && !isBotHere && <span style={{ fontSize: "0.6rem", color: "#64748b" }}>START</span>}
+              {isStart && !isBotHere && <span style={{ fontSize: "0.6rem", color: "#64748b" }}>{t("labs.navigator.start")}</span>}
               {isGoal && <span>⭐</span>}
               {isBotHere && (
                 <motion.span layoutId="ship" transition={{ type: "spring", damping: 15 }}>🚀</motion.span>
@@ -426,7 +460,7 @@ export default function AgentNavigator({ level = 1, onComplete }) {
             fontSize: "0.9rem", letterSpacing: "0.1em",
           }}
         >
-          {running ? "SIMULATING..." : "DEPLOY EPISODE"}
+          {running ? t("labs.navigator.simulating") : t("labs.navigator.deployEpisode")}
         </button>
 
         <AnimatePresence>
@@ -443,7 +477,7 @@ export default function AgentNavigator({ level = 1, onComplete }) {
                 letterSpacing: "0.05em",
               }}
             >
-              COMPLETE
+              {t("labs.navigator.complete")}
             </motion.button>
           )}
         </AnimatePresence>
@@ -459,7 +493,7 @@ export default function AgentNavigator({ level = 1, onComplete }) {
           }}
         >
           <span style={{ fontSize: "1rem" }}>⚠️</span>
-          <span><strong>NON-STATIONARY ENVIRONMENT:</strong> Asteroids shift position after each episode. ARIA must adapt!</span>
+          <span><strong>{t("labs.navigator.nonStationary")}</strong> {t("labs.navigator.nonStationaryDesc")}</span>
         </motion.div>
       )}
 
@@ -468,20 +502,22 @@ export default function AgentNavigator({ level = 1, onComplete }) {
         border: "1px solid rgba(249,115,22,0.2)", borderRadius: "10px",
         fontSize: "0.8rem", color: "#94a3b8", lineHeight: 1.6,
       }}>
-        <strong style={{ color: "#fb923c" }}>HOW IT WORKS:</strong>
+        <strong style={{ color: "#fb923c" }}>{t("labs.navigator.howItWorks")}</strong>
         <div style={{ display: "flex", gap: "16px", flexWrap: "wrap", marginTop: "8px" }}>
-          <span>🚀 ARIA starts here</span>
-          <span>⭐ Goal — big reward!</span>
-          <span>⛽ Fuel cell (+1 reward)</span>
-          <span>☄️ Asteroid (-1 penalty)</span>
+          <span>{t("labs.navigator.legend.ariaStart")}</span>
+          <span>{t("labs.navigator.legend.goal")}</span>
+          <span>{t("labs.navigator.legend.fuel")}</span>
+          <span>{t("labs.navigator.legend.asteroid")}</span>
         </div>
         <div style={{ marginTop: "8px", color: "#64748b" }}>
           {levelConfig.prePlaced
-            ? `Items are pre-placed. Hit DEPLOY to watch ARIA learn! Run at least ${levelConfig.minEpisodes} episodes.`
-            : "Click tiles to cycle: empty → ⛽ → ☄️ → empty. Place items, then hit DEPLOY to watch ARIA learn!"}
-          {level === 3 && " ARIA must reach the goal 3 times to complete."}
+            ? t("labs.navigator.instructionPrePlacedLong", { min: levelConfig.minEpisodes })
+            : t("labs.navigator.instructionPlaceLong")}
+          {level === 3 && ` ${t("labs.navigator.l3GoalNote")}`}
         </div>
       </div>
+
+      <AriaInsight insights={insights} onDismiss={dismissInsight} />
 
       {episodes > 0 && !canComplete() && (
         <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
@@ -492,10 +528,10 @@ export default function AgentNavigator({ level = 1, onComplete }) {
           }}
         >
           {episodes < levelConfig.minEpisodes && (
-            <span>Run {levelConfig.minEpisodes - episodes} more episode{levelConfig.minEpisodes - episodes > 1 ? "s" : ""} to unlock COMPLETE</span>
+            <span>{t("labs.navigator.moreEpisodes", { count: levelConfig.minEpisodes - episodes })}</span>
           )}
           {episodes >= levelConfig.minEpisodes && level === 3 && goalReaches < 3 && (
-            <span>ARIA needs to reach the goal {3 - goalReaches} more time{3 - goalReaches > 1 ? "s" : ""}</span>
+            <span>{t("labs.navigator.moreGoals", { count: 3 - goalReaches })}</span>
           )}
         </motion.div>
       )}

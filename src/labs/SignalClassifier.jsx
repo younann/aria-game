@@ -1,8 +1,10 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useGame } from "../systems/GameState";
+import { useI18n } from "../systems/I18nContext";
 import { playSound } from "../systems/SoundManager";
 import { MISSIONS, CONCEPT_CARDS } from "../systems/MissionConfig";
+import AriaInsight from "../ui/AriaInsight";
 
 /* ───────────────────────────── signal generation ───────────────────────────── */
 
@@ -164,6 +166,7 @@ function getCardsForLevel(level) {
 
 export default function SignalClassifier({ level = 1, onComplete }) {
   const { dispatch } = useGame();
+  const { t } = useI18n();
 
   const levelConfig = MISSIONS.datavault.levels[level];
   const signalCount = levelConfig.signalCount;
@@ -190,6 +193,16 @@ export default function SignalClassifier({ level = 1, onComplete }) {
     hintsVisible === true || hintsVisible === "fade" ? 1 : 0
   );
   const showHint = hintsVisible === true || (hintsVisible === "fade" && hintOpacity > 0);
+
+  const [insights, setInsights] = useState([]);
+  const insightCounter = useRef(0);
+  const pushInsight = useCallback((msg) => {
+    const id = `insight-${Date.now()}`;
+    setInsights((prev) => [...prev, { id, message: msg }]);
+  }, []);
+  const dismissInsight = useCallback((id) => {
+    setInsights((prev) => prev.filter((i) => i.id !== id));
+  }, []);
 
   // waveform animation tick
   useEffect(() => {
@@ -321,6 +334,21 @@ export default function SignalClassifier({ level = 1, onComplete }) {
         playSound("error");
       }
 
+      // AriaInsight every 3rd classification
+      insightCounter.current += 1;
+      if (insightCounter.current % 3 === 0) {
+        const sig = signals[index];
+        if (correct && sig.frequency === "LOW") {
+          pushInsight(t("labs.classifier.insight.lowFriendly"));
+        } else if (!correct) {
+          pushInsight(t("labs.classifier.insight.mislabeled"));
+        } else if (sig.frequency === "MEDIUM") {
+          pushInsight(t("labs.classifier.insight.ambiguous"));
+        } else {
+          pushInsight(t("labs.classifier.insight.practice"));
+        }
+      }
+
       setTimeout(() => {
         setFeedback(null);
         if (index < signals.length - 1) {
@@ -330,7 +358,7 @@ export default function SignalClassifier({ level = 1, onComplete }) {
         }
       }, 600);
     },
-    [index, signals, score, streak, bestStreak, correctCount, done, dispatch, level, hintsVisible, finishMission]
+    [index, signals, score, streak, bestStreak, correctCount, done, dispatch, level, hintsVisible, finishMission, pushInsight]
   );
 
   /* ═══════════════════════════ COMPLETION SCREEN ═══════════════════════════════ */
@@ -343,10 +371,10 @@ export default function SignalClassifier({ level = 1, onComplete }) {
       <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} style={{ padding: "48px", textAlign: "center" }}>
         <div style={{ fontSize: "4rem", marginBottom: "16px" }}>📡</div>
         <h2 style={{ fontSize: "1.8rem", fontWeight: 900, marginBottom: "8px", color: "#f8fafc" }}>
-          SIGNAL ANALYSIS COMPLETE
+          {t("labs.classifier.complete")}
         </h2>
         <div style={{ fontSize: "0.75rem", color: "#64748b", letterSpacing: "0.15em", marginBottom: "8px" }}>
-          LEVEL {level} — {levelConfig.name.toUpperCase()}
+          {t("common.level")} {level} — {levelConfig.name.toUpperCase()}
         </div>
 
         <StarDisplay earned={stars} />
@@ -354,22 +382,22 @@ export default function SignalClassifier({ level = 1, onComplete }) {
         <div style={{ display: "flex", justifyContent: "center", gap: "32px", margin: "24px 0" }}>
           <div style={{ textAlign: "center" }}>
             <div style={{ fontSize: "2rem", fontWeight: 900, color: "#10b981" }}>{accuracy}%</div>
-            <div style={{ fontSize: "0.7rem", color: "#94a3b8", letterSpacing: "0.1em" }}>ACCURACY</div>
+            <div style={{ fontSize: "0.7rem", color: "#94a3b8", letterSpacing: "0.1em" }}>{t("common.accuracy")}</div>
           </div>
           <div style={{ textAlign: "center" }}>
             <div style={{ fontSize: "2rem", fontWeight: 900, color: "#8b5cf6" }}>{finalBestStreak}</div>
-            <div style={{ fontSize: "0.7rem", color: "#94a3b8", letterSpacing: "0.1em" }}>BEST STREAK</div>
+            <div style={{ fontSize: "0.7rem", color: "#94a3b8", letterSpacing: "0.1em" }}>{t("common.bestStreak")}</div>
           </div>
           <div style={{ textAlign: "center" }}>
             <div style={{ fontSize: "2rem", fontWeight: 900, color: "#fbbf24" }}>{stars}/3</div>
-            <div style={{ fontSize: "0.7rem", color: "#94a3b8", letterSpacing: "0.1em" }}>STARS</div>
+            <div style={{ fontSize: "0.7rem", color: "#94a3b8", letterSpacing: "0.1em" }}>{t("common.stars")}</div>
           </div>
         </div>
 
         {awardedCards.length > 0 && (
           <div style={{ margin: "24px auto", maxWidth: "400px" }}>
             <div style={{ fontSize: "0.65rem", color: "#64748b", letterSpacing: "0.2em", marginBottom: "12px" }}>
-              CONCEPT CARDS COLLECTED
+              {t("common.conceptCardsCollected")}
             </div>
             {awardedCards.map((card) => (
               <motion.div
@@ -389,7 +417,7 @@ export default function SignalClassifier({ level = 1, onComplete }) {
                 <div>
                   <div style={{ fontSize: "0.85rem", fontWeight: 700, color: "#f8fafc" }}>{card.title}</div>
                   <div style={{ fontSize: "0.7rem", color: "#94a3b8" }}>
-                    {card.rarity === "rare" ? "RARE" : "COMMON"}
+                    {card.rarity === "rare" ? t("common.rare") : t("common.common")}
                   </div>
                 </div>
               </motion.div>
@@ -405,7 +433,7 @@ export default function SignalClassifier({ level = 1, onComplete }) {
             fontWeight: 800, cursor: "pointer", letterSpacing: "0.1em",
           }}
         >
-          RETURN TO STATION
+          {t("common.returnToStation")}
         </button>
       </motion.div>
     );
@@ -420,26 +448,26 @@ export default function SignalClassifier({ level = 1, onComplete }) {
       <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "16px" }}>
         <div>
           <h3 style={{ fontSize: "1.1rem", fontWeight: 800, letterSpacing: "0.1em", color: "#f8fafc" }}>
-            SIGNAL INTERCEPT
+            {t("labs.classifier.title")}
           </h3>
           <div style={{ fontSize: "0.75rem", color: "#64748b" }}>
-            Level {level} — {levelConfig.name}
+            {t("common.level")} {level} — {levelConfig.name}
           </div>
         </div>
         <div style={{ display: "flex", gap: "24px", textAlign: "right" }}>
           <div>
-            <div style={{ fontSize: "0.6rem", color: "#64748b", letterSpacing: "0.1em" }}>SIGNAL</div>
+            <div style={{ fontSize: "0.6rem", color: "#64748b", letterSpacing: "0.1em" }}>{t("labs.classifier.signal")}</div>
             <div style={{ fontWeight: 800, fontSize: "1.1rem" }}>{index + 1}/{signals.length}</div>
           </div>
           <div>
-            <div style={{ fontSize: "0.6rem", color: "#64748b", letterSpacing: "0.1em" }}>STREAK</div>
+            <div style={{ fontSize: "0.6rem", color: "#64748b", letterSpacing: "0.1em" }}>{t("labs.classifier.streak")}</div>
             <div style={{ fontWeight: 800, fontSize: "1.1rem", color: streak > 0 ? "#fbbf24" : "#64748b" }}>
               {streak > 0 ? `x${streak}` : "\u2014"}
             </div>
           </div>
           {timeLimit && (
             <div>
-              <div style={{ fontSize: "0.6rem", color: "#64748b", letterSpacing: "0.1em" }}>TIME</div>
+              <div style={{ fontSize: "0.6rem", color: "#64748b", letterSpacing: "0.1em" }}>{t("labs.classifier.time")}</div>
               <div style={{
                 fontWeight: 800, fontSize: "1.1rem",
                 color: timeLeft < 15 ? "#f43f5e" : timeLeft < 30 ? "#eab308" : "#10b981",
@@ -471,11 +499,11 @@ export default function SignalClassifier({ level = 1, onComplete }) {
           <WaveformDisplay signal={signal} />
           <div style={{ display: "flex", justifyContent: "center", gap: "32px", marginTop: "24px" }}>
             <div style={{ textAlign: "center" }}>
-              <div style={{ fontSize: "0.6rem", color: "#64748b", letterSpacing: "0.1em", marginBottom: "4px" }}>FREQUENCY</div>
+              <div style={{ fontSize: "0.6rem", color: "#64748b", letterSpacing: "0.1em", marginBottom: "4px" }}>{t("labs.classifier.frequency")}</div>
               <div style={{ fontWeight: 700, color: signal.color }}>{signal.frequency}</div>
             </div>
             <div style={{ textAlign: "center" }}>
-              <div style={{ fontSize: "0.6rem", color: "#64748b", letterSpacing: "0.1em", marginBottom: "4px" }}>PATTERN</div>
+              <div style={{ fontSize: "0.6rem", color: "#64748b", letterSpacing: "0.1em", marginBottom: "4px" }}>{t("labs.classifier.pattern")}</div>
               <div style={{ fontWeight: 700, color: signal.color }}>{signal.pattern}</div>
             </div>
           </div>
@@ -491,7 +519,7 @@ export default function SignalClassifier({ level = 1, onComplete }) {
             fontSize: "1rem", fontWeight: 800, cursor: "pointer", letterSpacing: "0.15em",
           }}
         >
-          FRIENDLY
+          {t("labs.classifier.friendly")}
         </button>
         <button
           onClick={() => handleClassify("HOSTILE")}
@@ -501,7 +529,7 @@ export default function SignalClassifier({ level = 1, onComplete }) {
             fontSize: "1rem", fontWeight: 800, cursor: "pointer", letterSpacing: "0.15em",
           }}
         >
-          HOSTILE
+          {t("labs.classifier.hostile")}
         </button>
       </div>
 
@@ -516,12 +544,14 @@ export default function SignalClassifier({ level = 1, onComplete }) {
             borderRadius: "10px", fontSize: "0.8rem", color: "#94a3b8", lineHeight: 1.5,
           }}
         >
-          <strong style={{ color: "#c4b5fd" }}>ARIA HINT:</strong>{" "}
+          <strong style={{ color: "#c4b5fd" }}>{t("common.ariaHint")}</strong>{" "}
           {level === 1
-            ? "Look at the frequency and pattern. Friendly signals tend to be LOW frequency with REPEATING patterns."
-            : "Friendly = LOW freq + REPEATING pattern. But watch out — MEDIUM frequency signals use the pattern as a tiebreaker!"}
+            ? t("labs.classifier.hint.1")
+            : t("labs.classifier.hint.2")}
         </motion.div>
       )}
+
+      <AriaInsight insights={insights} onDismiss={dismissInsight} />
     </div>
   );
 }

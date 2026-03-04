@@ -3,6 +3,8 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useGame } from "../systems/GameState";
 import { playSound } from "../systems/SoundManager";
 import { MISSIONS, CONCEPT_CARDS } from "../systems/MissionConfig";
+import { useI18n } from "../systems/I18nContext";
+import AriaInsight from "../ui/AriaInsight";
 
 /* ── Constants ─────────────────────────────────────────────────── */
 
@@ -244,6 +246,7 @@ function StarDisplay({ stars }) {
 
 export default function BiasDetector({ level = 1, onComplete }) {
   const { dispatch } = useGame();
+  const { t } = useI18n();
   const levelConfig = MISSIONS.ethicschamber.levels[level];
   const { starThresholds } = levelConfig;
 
@@ -256,6 +259,15 @@ export default function BiasDetector({ level = 1, onComplete }) {
   const [flagged, setFlagged] = useState(new Set());
   const [submitted, setSubmitted] = useState(false);
   const [done, setDone] = useState(false);
+
+  const [insights, setInsights] = useState([]);
+  const pushInsight = useCallback((msg) => {
+    const id = `insight-${Date.now()}`;
+    setInsights((prev) => [...prev, { id, message: msg }]);
+  }, []);
+  const dismissInsight = useCallback((id) => {
+    setInsights((prev) => prev.filter((i) => i.id !== id));
+  }, []);
 
   // L2 filters
   const [filterDept, setFilterDept] = useState("All");
@@ -380,8 +392,17 @@ export default function BiasDetector({ level = 1, onComplete }) {
 
     playSound("success");
 
+    // AriaInsight based on audit quality
+    if (wrongFlags === 0 && correctFlags === totalBiased) {
+      pushInsight(t("labs.bias.insight.perfect"));
+    } else if (wrongFlags > correctFlags) {
+      pushInsight(t("labs.bias.insight.overFlag"));
+    } else if (correctFlags < totalBiased) {
+      pushInsight(t("labs.bias.insight.subtle"));
+    }
+
     setTimeout(() => setDone({ score, stars }), 1500);
-  }, [submitted, decisions, flagged, calcStars, dispatch, level]);
+  }, [submitted, decisions, flagged, calcStars, dispatch, level, pushInsight]);
 
   /* ── Submit L3 ── */
   const handleSubmitL3 = useCallback(() => {
@@ -418,10 +439,10 @@ export default function BiasDetector({ level = 1, onComplete }) {
       <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} style={{ padding: "48px", textAlign: "center" }}>
         <div style={{ fontSize: "4rem", marginBottom: "16px" }}>{"\u2696\uFE0F"}</div>
         <h2 style={{ fontSize: "1.8rem", fontWeight: 900, marginBottom: "8px", color: "#f8fafc" }}>
-          {level === 1 ? "BIAS DETECTED" : level === 2 ? "HIDDEN BIAS FOUND" : "BIAS CORRECTED"}
+          {t(`labs.bias.complete.${level}`)}
         </h2>
         <div style={{ fontSize: "0.75rem", color: "#64748b", letterSpacing: "0.15em", marginBottom: "8px" }}>
-          LEVEL {level} — {levelConfig.name.toUpperCase()}
+          {t("common.level")} {level} — {levelConfig.name.toUpperCase()}
         </div>
 
         <StarDisplay stars={stars} />
@@ -429,11 +450,11 @@ export default function BiasDetector({ level = 1, onComplete }) {
         <div style={{ display: "flex", justifyContent: "center", gap: "32px", margin: "24px 0" }}>
           <div style={{ textAlign: "center" }}>
             <div style={{ fontSize: "2rem", fontWeight: 900, color: ROSE }}>{score}%</div>
-            <div style={{ fontSize: "0.7rem", color: "#94a3b8", letterSpacing: "0.1em" }}>SCORE</div>
+            <div style={{ fontSize: "0.7rem", color: "#94a3b8", letterSpacing: "0.1em" }}>{t("common.score")}</div>
           </div>
           <div style={{ textAlign: "center" }}>
             <div style={{ fontSize: "2rem", fontWeight: 900, color: "#fbbf24" }}>{stars}/3</div>
-            <div style={{ fontSize: "0.7rem", color: "#94a3b8", letterSpacing: "0.1em" }}>STARS</div>
+            <div style={{ fontSize: "0.7rem", color: "#94a3b8", letterSpacing: "0.1em" }}>{t("common.stars")}</div>
           </div>
         </div>
 
@@ -443,14 +464,14 @@ export default function BiasDetector({ level = 1, onComplete }) {
             background: "rgba(244,63,94,0.06)", border: "1px solid rgba(244,63,94,0.2)",
             borderRadius: "12px", fontSize: "0.85rem", color: "#94a3b8", lineHeight: 1.6,
           }}>
-            <strong style={{ color: ROSE }}>BIAS FOUND:</strong> {gameData.biasInfo}
+            <strong style={{ color: ROSE }}>{t("labs.bias.biasFound")}</strong> {gameData.biasInfo}
           </div>
         )}
 
         {awardedCards.length > 0 && (
           <div style={{ margin: "24px auto", maxWidth: "400px" }}>
             <div style={{ fontSize: "0.65rem", color: "#64748b", letterSpacing: "0.2em", marginBottom: "12px" }}>
-              CONCEPT CARDS COLLECTED
+              {t("common.conceptCardsCollected")}
             </div>
             {awardedCards.map((card) => (
               <motion.div key={card.id}
@@ -469,7 +490,7 @@ export default function BiasDetector({ level = 1, onComplete }) {
                 <div>
                   <div style={{ fontSize: "0.85rem", fontWeight: 700, color: "#f8fafc" }}>{card.title}</div>
                   <div style={{ fontSize: "0.7rem", color: "#94a3b8" }}>
-                    {card.rarity === "hidden" ? "HIDDEN" : card.rarity === "rare" ? "RARE" : "COMMON"}
+                    {t(`common.${card.rarity}`)}
                   </div>
                 </div>
               </motion.div>
@@ -485,7 +506,7 @@ export default function BiasDetector({ level = 1, onComplete }) {
             fontWeight: 800, cursor: "pointer", letterSpacing: "0.1em",
           }}
         >
-          RETURN TO STATION
+          {t("common.returnToStation")}
         </button>
       </motion.div>
     );
@@ -499,26 +520,26 @@ export default function BiasDetector({ level = 1, onComplete }) {
         <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "24px" }}>
           <div>
             <h3 style={{ fontSize: "1.1rem", fontWeight: 800, letterSpacing: "0.1em", color: "#f8fafc" }}>
-              FAIRNESS CALIBRATION
+              {t("labs.bias.fairnessCalibration")}
             </h3>
             <div style={{ fontSize: "0.75rem", color: "#64748b" }}>
-              Level 3 — Mastery: Fix ARIA's bias while keeping accuracy
+              {t("common.level")} 3 — {levelConfig.name}: {t("labs.bias.l3Subtitle")}
             </div>
           </div>
         </div>
 
         {/* Gauges */}
         <div style={{ display: "flex", gap: "24px", marginBottom: "32px", justifyContent: "center" }}>
-          <Gauge value={l3Scores.fairness} label="FAIRNESS" color={l3Scores.fairness > 70 ? GREEN : ROSE} />
-          <Gauge value={l3Scores.accuracy} label="ACCURACY" color={l3Scores.accuracy > 70 ? GREEN : ROSE} />
+          <Gauge value={l3Scores.fairness} label={t("labs.bias.fairness")} color={l3Scores.fairness > 70 ? GREEN : ROSE} />
+          <Gauge value={l3Scores.accuracy} label={t("labs.bias.accuracyLabel")} color={l3Scores.accuracy > 70 ? GREEN : ROSE} />
         </div>
 
         {/* Sliders */}
         <div style={{ display: "flex", flexDirection: "column", gap: "16px", marginBottom: "24px" }}>
           {[
-            { label: "DEPARTMENT FAIRNESS", value: deptFairness, setter: setDeptFairness },
-            { label: "RANK FAIRNESS", value: rankFairness, setter: setRankFairness },
-            { label: "OVERALL THRESHOLD", value: threshold, setter: setThreshold },
+            { label: t("labs.bias.deptFairness"), value: deptFairness, setter: setDeptFairness },
+            { label: t("labs.bias.rankFairness"), value: rankFairness, setter: setRankFairness },
+            { label: t("labs.bias.overallThreshold"), value: threshold, setter: setThreshold },
           ].map(({ label, value, setter }) => (
             <div key={label} style={{
               background: "rgba(255,255,255,0.03)", borderRadius: "12px",
@@ -547,7 +568,7 @@ export default function BiasDetector({ level = 1, onComplete }) {
             fontWeight: 800, cursor: "pointer", letterSpacing: "0.15em",
           }}
         >
-          APPLY CORRECTIONS
+          {t("labs.bias.applyCorrections")}
         </button>
 
         <div style={{
@@ -556,8 +577,8 @@ export default function BiasDetector({ level = 1, onComplete }) {
           border: "1px solid rgba(244,63,94,0.2)",
           borderRadius: "10px", fontSize: "0.8rem", color: "#94a3b8", lineHeight: 1.5,
         }}>
-          <strong style={{ color: "#fb7185" }}>ARIA HINT:</strong>{" "}
-          Balance fairness and accuracy. Increasing Department Fairness helps equalize approval rates. But pushing too hard may reduce accuracy. The best AIs find the sweet spot.
+          <strong style={{ color: "#fb7185" }}>{t("common.ariaHint")}</strong>{" "}
+          {t("labs.bias.hint.3")}
         </div>
       </div>
     );
@@ -715,6 +736,8 @@ export default function BiasDetector({ level = 1, onComplete }) {
         {level === 1 && "Look at the decisions column. Is one department getting denied much more than others? Click those rows to flag them as biased."}
         {level === 2 && "The bias is hidden! Try filtering by different combinations of Department and Rank. Look for a specific intersection where denial rates spike."}
       </div>
+
+      <AriaInsight insights={insights} onDismiss={dismissInsight} />
     </div>
   );
 }

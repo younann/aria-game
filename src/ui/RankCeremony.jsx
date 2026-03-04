@@ -1,22 +1,6 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-
-const RANK_MESSAGES = {
-  "Data Apprentice": "Y-you're... learning fast, Cadet... keep going...",
-  "Signal Analyst": "I can feel... my circuits warming... thank you...",
-  "Neural Technician":
-    "You're getting good at this! I can think more clearly now.",
-  "Pattern Architect": "Impressive! You see patterns just like I do.",
-  "Algorithm Specialist":
-    "Your understanding of AI grows deeper. I'm proud of you, Cadet.",
-  "Ethics Guardian": "You care about fairness. That makes you special.",
-  "AI Researcher":
-    "You know more about AI than most adults! Seriously.",
-  "Chief Scientist":
-    "I couldn't have been rebuilt without someone as skilled as you.",
-  "Prometheus Legend":
-    "You are truly legendary. The galaxy is lucky to have you.",
-};
+import { useI18n } from "../systems/I18nContext";
 
 /* ── Particle burst ─────────────────────────────────────────────── */
 
@@ -128,7 +112,8 @@ function TypingMessage({ text, delayMs = 1200 }) {
 /* ── Main overlay ───────────────────────────────────────────────── */
 
 export default function RankCeremony({ oldRank, newRank, onDismiss }) {
-  const message = RANK_MESSAGES[newRank] || "You've ranked up, Cadet!";
+  const { t } = useI18n();
+  const message = t(`ranks.message.${newRank}`) || t("rankCeremony.defaultMessage");
 
   return (
     <AnimatePresence>
@@ -178,7 +163,7 @@ export default function RankCeremony({ oldRank, newRank, onDismiss }) {
               textShadow: "0 0 8px rgba(148,163,184,0.3)",
             }}
           >
-            {oldRank}
+            {t(`ranks.${oldRank}`) || oldRank}
           </motion.span>
 
           {/* Arrow */}
@@ -214,7 +199,7 @@ export default function RankCeremony({ oldRank, newRank, onDismiss }) {
               textShadow: "0 0 32px rgba(251,191,36,0.4)",
             }}
           >
-            {newRank}
+            {t(`ranks.${newRank}`) || newRank}
           </motion.span>
         </div>
 
@@ -253,7 +238,7 @@ export default function RankCeremony({ oldRank, newRank, onDismiss }) {
             e.currentTarget.style.borderColor = "rgba(167,139,250,0.5)";
           }}
         >
-          CONTINUE
+          {t("rankCeremony.continue")}
         </motion.button>
 
         {/* Blinking cursor keyframes (injected once) */}

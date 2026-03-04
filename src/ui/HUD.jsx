@@ -1,6 +1,7 @@
 import React from "react";
 import { motion } from "framer-motion";
 import { useGame, RANKS } from "../systems/GameState";
+import { useI18n } from "../systems/I18nContext";
 
 const MAX_STARS = 54; // 6 missions x 3 levels x 3 max stars
 
@@ -13,6 +14,7 @@ function getAriaHealthGradient(health) {
 
 export default function HUD({ onOpenCodex }) {
   const { state } = useGame();
+  const { t } = useI18n();
   const currentRankIndex = RANKS.findIndex(r => r.name === state.rank);
   const nextRank = RANKS[currentRankIndex + 1];
   const prevStars = RANKS[currentRankIndex]?.stars || 0;
@@ -40,7 +42,7 @@ export default function HUD({ onOpenCodex }) {
         textTransform: "uppercase",
         pointerEvents: "auto",
       }}>
-        {state.rank}
+        {t(`ranks.${state.rank}`) || state.rank}
       </div>
 
       {/* Stars progress bar (rank progression) */}
@@ -49,8 +51,8 @@ export default function HUD({ onOpenCodex }) {
           display: "flex", justifyContent: "space-between",
           fontSize: "0.65rem", color: "#94a3b8", marginBottom: "4px",
         }}>
-          <span>STARS</span>
-          <span>{state.totalStars} {nextRank ? `/ ${nextStars}` : "(MAX)"}</span>
+          <span>{t("hud.stars")}</span>
+          <span>{state.totalStars} {nextRank ? `/ ${nextStars}` : t("hud.max")}</span>
         </div>
         <div style={{
           height: "8px", background: "rgba(255,255,255,0.08)",
@@ -83,7 +85,7 @@ export default function HUD({ onOpenCodex }) {
 
       {/* ARIA health bar */}
       <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-        <span style={{ fontSize: "0.65rem", color: "#94a3b8", letterSpacing: "0.1em" }}>ARIA</span>
+        <span style={{ fontSize: "0.65rem", color: "#94a3b8", letterSpacing: "0.1em" }}>{t("hud.aria")}</span>
         <div style={{
           width: "120px", height: "8px",
           background: "rgba(255,255,255,0.08)",
@@ -111,7 +113,7 @@ export default function HUD({ onOpenCodex }) {
         fontWeight: 700, letterSpacing: "0.1em",
         pointerEvents: "auto",
       }}>
-        {state.achievements.length} BADGES
+        {state.achievements.length} {t("hud.badges")}
       </div>
 
       {/* Codex button */}
@@ -140,7 +142,7 @@ export default function HUD({ onOpenCodex }) {
           e.currentTarget.style.transform = "scale(1)";
         }}
       >
-        {"\uD83D\uDCD6"} CODEX
+        {"\uD83D\uDCD6"} {t("hud.codex")}
       </button>
     </div>
   );

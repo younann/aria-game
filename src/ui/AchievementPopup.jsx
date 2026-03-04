@@ -1,7 +1,9 @@
 import React from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import { useI18n } from "../systems/I18nContext";
 
 export default function AchievementPopup({ achievement, onDone }) {
+  const { t } = useI18n();
   if (!achievement) return null;
 
   return (
@@ -25,7 +27,7 @@ export default function AchievementPopup({ achievement, onDone }) {
         <span style={{ fontSize: "2rem" }}>&#127942;</span>
         <div>
           <div style={{ fontSize: "0.65rem", color: "#fbbf24", fontWeight: 700, letterSpacing: "0.2em", marginBottom: "4px" }}>
-            ACHIEVEMENT UNLOCKED
+            {t("achievement.unlocked")}
           </div>
           <div style={{ fontSize: "1rem", fontWeight: 700, color: "#f8fafc" }}>
             {achievement}

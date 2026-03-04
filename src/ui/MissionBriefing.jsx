@@ -1,23 +1,33 @@
 import React from "react";
 import { motion } from "framer-motion";
-import { MISSIONS } from "../systems/MissionConfig";
-
-const LEVEL_LABELS = {
-  1: "TUTORIAL",
-  2: "CHALLENGE",
-  3: "MASTERY",
-};
+import { MISSIONS, CONCEPT_CARDS } from "../systems/MissionConfig";
+import { useI18n } from "../systems/I18nContext";
 
 export default function MissionBriefing({ missionId, level = 1, onStart }) {
+  const { t } = useI18n();
   const mission = MISSIONS[missionId];
   if (!mission) return null;
 
   const levelData = mission.levels[level];
   if (!levelData) return null;
 
-  const { color, title, subtitle, concept } = mission;
-  const { briefingSteps, starThresholds } = levelData;
-  const levelLabel = LEVEL_LABELS[level] || `LEVEL ${level}`;
+  const { color } = mission;
+  const title = t(`missions.${missionId}.title`) || mission.title;
+  const subtitle = t(`missions.${missionId}.subtitle`) || mission.subtitle;
+  const concept = t(`missions.${missionId}.concept`) || mission.concept;
+  const { starThresholds } = levelData;
+  const levelLabel = t(`briefing.levelLabel.${level}`) || `LEVEL ${level}`;
+  const description = t(`missions.${missionId}.levels.${level}.description`) || levelData.description;
+
+  // Build briefing steps from locale, falling back to config
+  const briefingSteps = [];
+  for (let i = 0; i < (levelData.briefingSteps || []).length; i++) {
+    const key = `missions.${missionId}.levels.${level}.briefingSteps.${i}`;
+    const val = t(key);
+    briefingSteps.push(val !== key ? val : levelData.briefingSteps[i]);
+  }
+
+  const conceptCard = CONCEPT_CARDS.find((c) => c.mission === missionId);
 
   return (
     <motion.div
@@ -52,7 +62,7 @@ export default function MissionBriefing({ missionId, level = 1, onStart }) {
           letterSpacing: "0.2em",
           marginBottom: "16px",
         }}>
-          LEVEL {level}: {levelLabel}
+          {t("common.level")} {level}: {levelLabel}
         </div>
 
         <div style={{
@@ -60,7 +70,7 @@ export default function MissionBriefing({ missionId, level = 1, onStart }) {
           color, letterSpacing: "0.25em",
           marginBottom: "8px",
         }}>
-          MISSION BRIEFING
+          {t("briefing.missionBriefing")}
         </div>
         <h2 style={{
           fontSize: "2rem", fontWeight: 900,
@@ -85,10 +95,10 @@ export default function MissionBriefing({ missionId, level = 1, onStart }) {
           textAlign: "left",
         }}>
           <div style={{ fontSize: "0.65rem", color: "#94a3b8", fontWeight: 700, letterSpacing: "0.15em", marginBottom: "8px" }}>
-            OBJECTIVE
+            {t("briefing.objective")}
           </div>
           <div style={{ fontSize: "0.95rem", lineHeight: 1.6, color: "#e2e8f0" }}>
-            {levelData.description}
+            {description}
           </div>
         </div>
 
@@ -102,7 +112,7 @@ export default function MissionBriefing({ missionId, level = 1, onStart }) {
           textAlign: "left",
         }}>
           <div style={{ fontSize: "0.65rem", color, fontWeight: 700, letterSpacing: "0.15em", marginBottom: "12px" }}>
-            HOW TO PLAY
+            {t("briefing.howToPlay")}
           </div>
           {briefingSteps.map((step, i) => (
             <div key={i} style={{
@@ -167,10 +177,21 @@ export default function MissionBriefing({ missionId, level = 1, onStart }) {
           fontWeight: 700,
           color,
           letterSpacing: "0.1em",
-          marginBottom: "32px",
+          marginBottom: "8px",
         }}>
-          AI CONCEPT: {concept}
+          {t("briefing.aiConcept")} {concept}
         </div>
+        {conceptCard && (
+          <div style={{
+            fontSize: "0.8rem",
+            color: "#94a3b8",
+            lineHeight: 1.5,
+            marginBottom: "32px",
+            maxWidth: "420px",
+          }}>
+            {conceptCard.description}
+          </div>
+        )}
 
         <div>
           <button
@@ -187,7 +208,7 @@ export default function MissionBriefing({ missionId, level = 1, onStart }) {
               letterSpacing: "0.15em",
             }}
           >
-            BEGIN MISSION
+            {t("briefing.beginMission")}
           </button>
         </div>
       </div>

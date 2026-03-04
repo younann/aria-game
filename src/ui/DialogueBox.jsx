@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useGame } from "../systems/GameState";
+import { useI18n } from "../systems/I18nContext";
 
 const PORTRAITS = {
   commander: { emoji: "👨‍✈️", color: "#3b82f6" },
@@ -13,13 +14,14 @@ const PORTRAITS = {
 
 export default function DialogueBox({ dialogue, onComplete }) {
   const { state } = useGame();
+  const { t } = useI18n();
   const [lineIndex, setLineIndex] = useState(0);
   const [displayedText, setDisplayedText] = useState("");
   const [isTyping, setIsTyping] = useState(true);
 
   const playerName = state.playerName || "Cadet";
   const personalize = (text) =>
-    text.replace(/Cadet Nova/g, playerName).replace(/\bCadet\b/g, playerName);
+    text.replace(/\{\{playerName\}\}/g, playerName).replace(/Cadet Nova/g, playerName).replace(/\bCadet\b/g, playerName);
 
   const currentLine = dialogue?.[lineIndex];
 
@@ -146,7 +148,7 @@ export default function DialogueBox({ dialogue, onComplete }) {
           color: "#64748b", marginTop: "8px",
           letterSpacing: "0.1em",
         }}>
-          CLICK TO CONTINUE ▸
+          {t("dialogue.clickToContinue")} ▸
         </div>
       )}
     </motion.div>

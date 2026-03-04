@@ -344,3 +344,48 @@ export const CONCEPT_CARDS = [
   { id: "responsible_ai", title: "Responsible AI", description: "Building AI that is fair, transparent, and accountable — not just accurate.", realWorld: "The EU AI Act requires companies to audit AI systems for bias.", rarity: "rare", icon: "🛡️", mission: "ethicschamber" },
   { id: "accuracy_fairness", title: "Accuracy vs Fairness", description: "Sometimes making AI fairer means accepting slightly lower accuracy — a real tradeoff.", realWorld: "Criminal justice AI must balance predicting risk with treating people fairly.", rarity: "hidden", icon: "⚡", mission: "ethicschamber" },
 ];
+
+/**
+ * Build locale-aware missions object.
+ * Overlays translated title, subtitle, concept, level names/descriptions/briefingSteps.
+ * Structural data (colors, thresholds, gridSize, etc.) is preserved from MISSIONS.
+ */
+export function getMissions(t) {
+  const result = {};
+  for (const [id, mission] of Object.entries(MISSIONS)) {
+    const levels = {};
+    for (const [lvl, levelData] of Object.entries(mission.levels)) {
+      const briefingSteps = levelData.briefingSteps.map(
+        (_, si) => t(`missions.${id}.levels.${lvl}.briefingSteps.${si}`)
+      );
+      levels[lvl] = {
+        ...levelData,
+        name: t(`missions.${id}.levels.${lvl}.name`),
+        description: t(`missions.${id}.levels.${lvl}.description`),
+        briefingSteps,
+      };
+    }
+    result[id] = {
+      ...mission,
+      title: t(`missions.${id}.title`),
+      subtitle: t(`missions.${id}.subtitle`),
+      concept: t(`missions.${id}.concept`),
+      levels,
+    };
+  }
+  return result;
+}
+
+/**
+ * Build locale-aware concept cards.
+ * Overlays translated title, description, realWorld.
+ * Structural data (id, rarity, icon, mission) is preserved.
+ */
+export function getConceptCards(t) {
+  return CONCEPT_CARDS.map((card) => ({
+    ...card,
+    title: t(`cards.${card.id}.title`),
+    description: t(`cards.${card.id}.description`),
+    realWorld: t(`cards.${card.id}.realWorld`),
+  }));
+}

@@ -1,8 +1,10 @@
-import React, { useState, useCallback, useEffect } from "react";
+import React, { useState, useCallback, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useGame } from "../systems/GameState";
 import { playSound } from "../systems/SoundManager";
 import { MISSIONS, CONCEPT_CARDS } from "../systems/MissionConfig";
+import { useI18n } from "../systems/I18nContext";
+import AriaInsight from "../ui/AriaInsight";
 
 /* ── Message bank ──────────────────────────────────────────────── */
 
@@ -105,7 +107,7 @@ function ScanLineOverlay() {
 
 /* ── Token analysis display ────────────────────────────────────── */
 
-function TokenAnalysis({ message, isCorrect }) {
+function TokenAnalysis({ message, isCorrect, t }) {
   const catColor = CAT_COLORS[message.category] || "#94a3b8";
 
   return (
@@ -120,7 +122,7 @@ function TokenAnalysis({ message, isCorrect }) {
       }}
     >
       <div style={{ fontSize: "0.65rem", color: "#64748b", letterSpacing: "0.15em", marginBottom: "10px" }}>
-        ARIA'S TOKEN ANALYSIS
+        {t("labs.decoder.tokenAnalysis")}
       </div>
       <div style={{ display: "flex", gap: "8px", flexWrap: "wrap", marginBottom: "12px" }}>
         {message.tokens.map((t, i) => (
@@ -167,6 +169,7 @@ function StarDisplay({ earned, total = 3 }) {
 
 export default function MessageDecoder({ level = 1, onComplete }) {
   const { dispatch } = useGame();
+  const { t } = useI18n();
   const levelConfig = MISSIONS.commsarray.levels[level];
   const { messageCount, categories, starThresholds } = levelConfig;
 
@@ -178,15 +181,25 @@ export default function MessageDecoder({ level = 1, onComplete }) {
   const [feedback, setFeedback] = useState(null); // null | { correct, message }
   const [done, setDone] = useState(false);
 
+  const [insights, setInsights] = useState([]);
+  const insightCounter = useRef(0);
+  const pushInsight = useCallback((msg) => {
+    const id = `insight-${Date.now()}`;
+    setInsights((prev) => [...prev, { id, message: msg }]);
+  }, []);
+  const dismissInsight = useCallback((id) => {
+    setInsights((prev) => prev.filter((i) => i.id !== id));
+  }, []);
+
   /* ── finish helper ── */
   const finishMission = useCallback(
     (finalScore) => {
       const accuracy = Math.round((finalScore / messageCount) * 100);
-      const t = starThresholds;
+      const th = starThresholds;
       let stars = 0;
-      if (accuracy >= t[3]) stars = 3;
-      else if (accuracy >= t[2]) stars = 2;
-      else if (accuracy >= t[1]) stars = 1;
+      if (accuracy >= th[3]) stars = 3;
+      else if (accuracy >= th[2]) stars = 2;
+      else if (accuracy >= th[1]) stars = 1;
 
       dispatch({ type: "SET_STARS", payload: { mission: "commsarray", level, stars } });
       dispatch({ type: "COMPLETE_LEVEL", payload: { mission: "commsarray", level } });
@@ -237,6 +250,12 @@ export default function MessageDecoder({ level = 1, onComplete }) {
 
       setFeedback({ correct, message: msg });
 
+      // AriaInsight every 3rd message
+      insightCounter.current += 1;
+      if (insightCounter.current % 3 === 0) {
+        pushInsight(t("labs.decoder.insight.tokenization"));
+      }
+
       setTimeout(() => {
         setFeedback(null);
         if (index < messages.length - 1) {
@@ -246,7 +265,7 @@ export default function MessageDecoder({ level = 1, onComplete }) {
         }
       }, 2500);
     },
-    [index, messages, score, streak, bestStreak, feedback, done, dispatch, finishMission],
+    [index, messages, score, streak, bestStreak, feedback, done, dispatch, finishMission, pushInsight],
   );
 
   /* ═══════════════════════ COMPLETION SCREEN ═══════════════════════ */
@@ -259,10 +278,10 @@ export default function MessageDecoder({ level = 1, onComplete }) {
       <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} style={{ padding: "48px", textAlign: "center" }}>
         <div style={{ fontSize: "4rem", marginBottom: "16px" }}>💬</div>
         <h2 style={{ fontSize: "1.8rem", fontWeight: 900, marginBottom: "8px", color: "#f8fafc" }}>
-          MESSAGE ANALYSIS COMPLETE
+          {t("labs.decoder.complete")}
         </h2>
         <div style={{ fontSize: "0.75rem", color: "#64748b", letterSpacing: "0.15em", marginBottom: "8px" }}>
-          LEVEL {level} — {levelConfig.name.toUpperCase()}
+          {t("common.level")} {level} — {levelConfig.name.toUpperCase()}
         </div>
 
         <StarDisplay earned={stars} />
@@ -270,22 +289,22 @@ export default function MessageDecoder({ level = 1, onComplete }) {
         <div style={{ display: "flex", justifyContent: "center", gap: "32px", margin: "24px 0" }}>
           <div style={{ textAlign: "center" }}>
             <div style={{ fontSize: "2rem", fontWeight: 900, color: "#ec4899" }}>{accuracy}%</div>
-            <div style={{ fontSize: "0.7rem", color: "#94a3b8", letterSpacing: "0.1em" }}>ACCURACY</div>
+            <div style={{ fontSize: "0.7rem", color: "#94a3b8", letterSpacing: "0.1em" }}>{t("common.accuracy")}</div>
           </div>
           <div style={{ textAlign: "center" }}>
             <div style={{ fontSize: "2rem", fontWeight: 900, color: "#8b5cf6" }}>{finalBestStreak}</div>
-            <div style={{ fontSize: "0.7rem", color: "#94a3b8", letterSpacing: "0.1em" }}>BEST STREAK</div>
+            <div style={{ fontSize: "0.7rem", color: "#94a3b8", letterSpacing: "0.1em" }}>{t("common.bestStreak")}</div>
           </div>
           <div style={{ textAlign: "center" }}>
             <div style={{ fontSize: "2rem", fontWeight: 900, color: "#fbbf24" }}>{stars}/3</div>
-            <div style={{ fontSize: "0.7rem", color: "#94a3b8", letterSpacing: "0.1em" }}>STARS</div>
+            <div style={{ fontSize: "0.7rem", color: "#94a3b8", letterSpacing: "0.1em" }}>{t("common.stars")}</div>
           </div>
         </div>
 
         {awardedCards.length > 0 && (
           <div style={{ margin: "24px auto", maxWidth: "400px" }}>
             <div style={{ fontSize: "0.65rem", color: "#64748b", letterSpacing: "0.2em", marginBottom: "12px" }}>
-              CONCEPT CARDS COLLECTED
+              {t("common.conceptCardsCollected")}
             </div>
             {awardedCards.map((card) => (
               <motion.div key={card.id}
@@ -303,7 +322,7 @@ export default function MessageDecoder({ level = 1, onComplete }) {
                 <span style={{ fontSize: "1.5rem" }}>{card.icon}</span>
                 <div>
                   <div style={{ fontSize: "0.85rem", fontWeight: 700, color: "#f8fafc" }}>{card.title}</div>
-                  <div style={{ fontSize: "0.7rem", color: "#94a3b8" }}>{card.rarity === "rare" ? "RARE" : "COMMON"}</div>
+                  <div style={{ fontSize: "0.7rem", color: "#94a3b8" }}>{card.rarity === "rare" ? t("common.rare") : t("common.common")}</div>
                 </div>
               </motion.div>
             ))}
@@ -318,7 +337,7 @@ export default function MessageDecoder({ level = 1, onComplete }) {
             fontWeight: 800, cursor: "pointer", letterSpacing: "0.1em",
           }}
         >
-          RETURN TO STATION
+          {t("common.returnToStation")}
         </button>
       </motion.div>
     );
@@ -334,19 +353,19 @@ export default function MessageDecoder({ level = 1, onComplete }) {
       <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "16px" }}>
         <div>
           <h3 style={{ fontSize: "1.1rem", fontWeight: 800, letterSpacing: "0.1em", color: "#f8fafc" }}>
-            COMMS INTERCEPT
+            {t("labs.decoder.title")}
           </h3>
           <div style={{ fontSize: "0.75rem", color: "#64748b" }}>
-            Level {level} — {levelConfig.name}
+            {t("common.level")} {level} — {levelConfig.name}
           </div>
         </div>
         <div style={{ display: "flex", gap: "24px", textAlign: "right" }}>
           <div>
-            <div style={{ fontSize: "0.6rem", color: "#64748b", letterSpacing: "0.1em" }}>MESSAGE</div>
+            <div style={{ fontSize: "0.6rem", color: "#64748b", letterSpacing: "0.1em" }}>{t("labs.decoder.message")}</div>
             <div style={{ fontWeight: 800, fontSize: "1.1rem" }}>{index + 1}/{messages.length}</div>
           </div>
           <div>
-            <div style={{ fontSize: "0.6rem", color: "#64748b", letterSpacing: "0.1em" }}>STREAK</div>
+            <div style={{ fontSize: "0.6rem", color: "#64748b", letterSpacing: "0.1em" }}>{t("labs.decoder.streak")}</div>
             <div style={{ fontWeight: 800, fontSize: "1.1rem", color: streak > 0 ? "#fbbf24" : "#64748b" }}>
               {streak > 0 ? `x${streak}` : "\u2014"}
             </div>
@@ -375,7 +394,7 @@ export default function MessageDecoder({ level = 1, onComplete }) {
           {!feedback && <ScanLineOverlay />}
 
           <div style={{ fontSize: "0.6rem", color: "#64748b", letterSpacing: "0.2em", marginBottom: "16px" }}>
-            INCOMING TRANSMISSION
+            {t("labs.decoder.incomingTransmission")}
           </div>
           <p style={{
             fontSize: "1.1rem", lineHeight: 1.7, color: "#e2e8f0",
@@ -391,7 +410,7 @@ export default function MessageDecoder({ level = 1, onComplete }) {
               fontSize: "0.85rem", fontWeight: 700,
               color: feedback.correct ? "#10b981" : "#f43f5e",
             }}>
-              {feedback.correct ? "CORRECT" : `WRONG — This was: ${msg.category}`}
+              {feedback.correct ? t("common.correct") : t("labs.decoder.wrongWas", { category: msg.category })}
             </div>
           )}
         </motion.div>
@@ -399,7 +418,7 @@ export default function MessageDecoder({ level = 1, onComplete }) {
 
       {/* Token analysis (shown after classification) */}
       <AnimatePresence>
-        {feedback && <TokenAnalysis message={feedback.message} isCorrect={feedback.correct} />}
+        {feedback && <TokenAnalysis message={feedback.message} isCorrect={feedback.correct} t={t} />}
       </AnimatePresence>
 
       {/* Category buttons */}
@@ -437,12 +456,12 @@ export default function MessageDecoder({ level = 1, onComplete }) {
           border: "1px solid rgba(236,72,153,0.2)",
           borderRadius: "10px", fontSize: "0.8rem", color: "#94a3b8", lineHeight: 1.5,
         }}>
-          <strong style={{ color: "#f472b6" }}>ARIA HINT:</strong>{" "}
-          {level === 1 && "Look for keywords! Greeting words like 'hello' and 'welcome', warning words like 'danger' and 'alert', and request words like 'need' and 'please'."}
-          {level === 2 && "Keywords are less obvious now. Pay attention to TONE and implied meaning. Threats involve hostile intent — different from warnings about natural dangers."}
-          {level === 3 && "Watch for sarcasm and hidden meanings! When someone says 'wonderful' about a meteor shower, they probably don't mean it. Context is everything."}
+          <strong style={{ color: "#f472b6" }}>{t("common.ariaHint")}</strong>{" "}
+          {t(`labs.decoder.hint.${level}`)}
         </div>
       )}
+
+      <AriaInsight insights={insights} onDismiss={dismissInsight} />
     </div>
   );
 }

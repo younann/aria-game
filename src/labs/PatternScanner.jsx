@@ -3,6 +3,8 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useGame } from "../systems/GameState";
 import { MISSIONS, CONCEPT_CARDS } from "../systems/MissionConfig";
 import { playSound } from "../systems/SoundManager";
+import { useI18n } from "../systems/I18nContext";
+import AriaInsight from "../ui/AriaInsight";
 
 // --- Constants ---
 
@@ -221,6 +223,7 @@ const PHASE_COMPLETE = "complete";
 
 export default function PatternScanner({ level = 1, onComplete }) {
   const { dispatch } = useGame();
+  const { t } = useI18n();
   const config = MISSIONS.opticslab.levels[level];
   const { gridSize, noiseLevel, rounds: totalRounds, starThresholds, overlapping } = config;
 
@@ -232,6 +235,15 @@ export default function PatternScanner({ level = 1, onComplete }) {
   const [feedback, setFeedback] = useState(null);
   const [dots, setDots] = useState("");
   const timerRef = useRef(null);
+
+  const [insights, setInsights] = useState([]);
+  const pushInsight = useCallback((msg) => {
+    const id = `insight-${Date.now()}`;
+    setInsights((prev) => [...prev, { id, message: msg }]);
+  }, []);
+  const dismissInsight = useCallback((id) => {
+    setInsights((prev) => prev.filter((i) => i.id !== id));
+  }, []);
 
   // Animated dots for scanning phase
   useEffect(() => {
@@ -340,8 +352,10 @@ export default function PatternScanner({ level = 1, onComplete }) {
     if (isCorrect) {
       playSound("success");
       dispatch({ type: "ADD_XP", payload: 15 + level * 5 });
+      pushInsight(t("labs.scanner.insight.correct"));
     } else {
       playSound("error");
+      pushInsight(t("labs.scanner.insight.wrong"));
     }
 
     const newRoundsCorrect = isCorrect ? roundsCorrect + 1 : roundsCorrect;
@@ -383,11 +397,11 @@ export default function PatternScanner({ level = 1, onComplete }) {
           color: "#f8fafc",
           marginBottom: "8px",
         }}>
-          PATTERN SCAN COMPLETE
+          {t("labs.scanner.complete")}
         </h2>
 
         <p style={{ color: "#94a3b8", fontSize: "0.9rem", marginBottom: "24px" }}>
-          ARIA's visual cortex has been calibrated.
+          {t("labs.scanner.calibrated")}
         </p>
 
         {/* Star rating */}
@@ -419,7 +433,7 @@ export default function PatternScanner({ level = 1, onComplete }) {
               {roundsCorrect}/{totalRounds}
             </div>
             <div style={{ fontSize: "0.7rem", color: "#94a3b8", letterSpacing: "0.1em" }}>
-              ROUNDS CORRECT
+              {t("common.roundsCorrect")}
             </div>
           </div>
           <div style={{ textAlign: "center" }}>
@@ -427,7 +441,7 @@ export default function PatternScanner({ level = 1, onComplete }) {
               {stars}
             </div>
             <div style={{ fontSize: "0.7rem", color: "#94a3b8", letterSpacing: "0.1em" }}>
-              STARS EARNED
+              {t("common.starsEarned")}
             </div>
           </div>
         </div>
@@ -446,7 +460,7 @@ export default function PatternScanner({ level = 1, onComplete }) {
             letterSpacing: "0.1em",
           }}
         >
-          RETURN TO STATION
+          {t("common.returnToStation")}
         </button>
       </motion.div>
     );
@@ -471,16 +485,16 @@ export default function PatternScanner({ level = 1, onComplete }) {
             letterSpacing: "0.1em",
             color: "#f8fafc",
           }}>
-            OPTICS LAB
+            {t("labs.scanner.title")}
           </h3>
           <div style={{ fontSize: "0.75rem", color: "#64748b" }}>
-            Find the hidden pattern in the grid
+            {t("labs.scanner.subtitle")}
           </div>
         </div>
         <div style={{ display: "flex", gap: "24px", textAlign: "right" }}>
           <div>
             <div style={{ fontSize: "0.6rem", color: "#64748b", letterSpacing: "0.1em" }}>
-              ROUND
+              {t("labs.scanner.round")}
             </div>
             <div style={{ fontWeight: 800, fontSize: "1.1rem", color: "#f8fafc" }}>
               {round}/{totalRounds}
@@ -488,7 +502,7 @@ export default function PatternScanner({ level = 1, onComplete }) {
           </div>
           <div>
             <div style={{ fontSize: "0.6rem", color: "#64748b", letterSpacing: "0.1em" }}>
-              CORRECT
+              {t("labs.scanner.correct")}
             </div>
             <div style={{
               fontWeight: 800,
@@ -522,7 +536,7 @@ export default function PatternScanner({ level = 1, onComplete }) {
                 letterSpacing: "0.2em",
               }}
             >
-              ARIA is scanning{dots}
+              {t("labs.scanner.scanning")}{dots}
             </motion.div>
           </motion.div>
         )}
@@ -549,7 +563,7 @@ export default function PatternScanner({ level = 1, onComplete }) {
               letterSpacing: "0.2em",
               marginBottom: "12px",
             }}>
-              FIND THIS PATTERN
+              {t("labs.scanner.findPattern")}
             </div>
             <motion.div
               animate={{ scale: [1, 1.2, 1] }}
@@ -562,7 +576,7 @@ export default function PatternScanner({ level = 1, onComplete }) {
               {roundData.targetSymbol}
             </motion.div>
             <div style={{ marginTop: "12px", fontSize: "0.75rem", color: "#64748b" }}>
-              Ignore the distractor pattern ({roundData.distractorSymbol})
+              {t("labs.scanner.ignoreDistractor", { symbol: roundData.distractorSymbol })}
             </div>
             <motion.div
               initial={{ width: "100%" }}
@@ -596,7 +610,7 @@ export default function PatternScanner({ level = 1, onComplete }) {
                 color: CYAN,
                 letterSpacing: "0.1em",
               }}>
-                TARGET:{" "}
+                {t("labs.scanner.target")}{" "}
                 <span style={{ fontSize: "1.2rem", verticalAlign: "middle" }}>
                   {roundData.targetSymbol}
                 </span>
@@ -713,10 +727,10 @@ export default function PatternScanner({ level = 1, onComplete }) {
                   color: feedback.isCorrect ? GREEN : RED,
                   letterSpacing: "0.1em",
                 }}>
-                  {"Round " + round + "/" + totalRounds + " \u2014 "}
+                  {t("labs.scanner.roundResult", { round, total: totalRounds })} {"\u2014 "}
                   {feedback.isCorrect
-                    ? "Correct!"
-                    : "Missed " + feedback.missed.size + " cell" + (feedback.missed.size !== 1 ? "s" : "")}
+                    ? t("labs.scanner.roundCorrect")
+                    : t("labs.scanner.roundMissed", { count: feedback.missed.size })}
                 </span>
               </motion.div>
             )}
@@ -740,7 +754,7 @@ export default function PatternScanner({ level = 1, onComplete }) {
                   marginBottom: "24px",
                 }}
               >
-                SUBMIT SCAN
+                {t("labs.scanner.submitScan")}
               </button>
             )}
 
@@ -755,15 +769,12 @@ export default function PatternScanner({ level = 1, onComplete }) {
                 color: "#94a3b8",
                 lineHeight: 1.6,
               }}>
-                <strong style={{ color: CYAN }}>ARIA HINT: </strong>
-                {level === 1 &&
-                  "Look for a shape made from matching symbols. Click the cells, then submit your scan."}
-                {level === 2 &&
-                  "The grid has noise symbols scattered in. Focus on finding the connected pattern of identical symbols."}
-                {level === 3 &&
-                  "Two patterns are hidden in the grid. Only select the TARGET pattern shown above. Ignore the distractor!"}
+                <strong style={{ color: CYAN }}>{t("common.ariaHint")}</strong>{" "}
+                {t(`labs.scanner.hint.${level}`)}
               </div>
             )}
+
+            <AriaInsight insights={insights} onDismiss={dismissInsight} />
           </motion.div>
         )}
       </AnimatePresence>

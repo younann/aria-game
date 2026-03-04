@@ -2,13 +2,10 @@ import React from "react";
 import { motion } from "framer-motion";
 import { MISSIONS } from "../systems/MissionConfig.js";
 import { useGame } from "../systems/GameState.jsx";
+import { useI18n } from "../systems/I18nContext";
 import StarRating from "./StarRating.jsx";
 
-const LEVEL_LABELS = {
-  1: { name: "Tutorial", badge: "I" },
-  2: { name: "Challenge", badge: "II" },
-  3: { name: "Mastery", badge: "III" },
-};
+const LEVEL_BADGES = { 1: "I", 2: "II", 3: "III" };
 
 function isLevelUnlocked(levelNum, levelCompleteMap) {
   if (levelNum === 1) return true;
@@ -17,6 +14,7 @@ function isLevelUnlocked(levelNum, levelCompleteMap) {
 
 export default function LevelSelect({ missionId, onSelectLevel, onBack }) {
   const { state } = useGame();
+  const { t, dir } = useI18n();
   const mission = MISSIONS[missionId];
   if (!mission) return null;
 
@@ -61,7 +59,7 @@ export default function LevelSelect({ missionId, onSelectLevel, onBack }) {
             margin: "0 0 4px",
           }}
         >
-          {mission.title}
+          {t(`missions.${missionId}.title`) || mission.title}
         </h2>
         <div
           style={{
@@ -72,7 +70,7 @@ export default function LevelSelect({ missionId, onSelectLevel, onBack }) {
             marginBottom: "8px",
           }}
         >
-          {mission.subtitle}
+          {t(`missions.${missionId}.subtitle`) || mission.subtitle}
         </div>
         <div
           style={{
@@ -88,7 +86,7 @@ export default function LevelSelect({ missionId, onSelectLevel, onBack }) {
             marginBottom: "28px",
           }}
         >
-          {mission.concept}
+          {t(`missions.${missionId}.concept`) || mission.concept}
         </div>
 
         {/* Level cards */}
@@ -173,7 +171,7 @@ export default function LevelSelect({ missionId, onSelectLevel, onBack }) {
                     letterSpacing: "0.05em",
                   }}
                 >
-                  {LEVEL_LABELS[levelNum].badge}
+                  {LEVEL_BADGES[levelNum]}
                 </div>
 
                 {/* Level name */}
@@ -186,7 +184,7 @@ export default function LevelSelect({ missionId, onSelectLevel, onBack }) {
                     letterSpacing: "0.04em",
                   }}
                 >
-                  {levelData.name}
+                  {t(`missions.${missionId}.levels.${levelNum}.name`) || levelData.name}
                 </div>
 
                 {/* Description */}
@@ -199,7 +197,7 @@ export default function LevelSelect({ missionId, onSelectLevel, onBack }) {
                     minHeight: "32px",
                   }}
                 >
-                  {levelData.description}
+                  {t(`missions.${missionId}.levels.${levelNum}.description`) || levelData.description}
                 </div>
 
                 {/* Star rating */}
@@ -233,7 +231,7 @@ export default function LevelSelect({ missionId, onSelectLevel, onBack }) {
             e.currentTarget.style.color = "#94a3b8";
           }}
         >
-          {"\u2190"} BACK TO STATION
+          {dir === "rtl" ? t("levelSelect.backArrowRTL") : t("levelSelect.backArrow")} {t("levelSelect.backToStation")}
         </button>
       </div>
     </motion.div>

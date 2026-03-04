@@ -2,17 +2,12 @@ import React, { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useGame } from "../systems/GameState";
 import { MISSIONS, CONCEPT_CARDS } from "../systems/MissionConfig";
+import { useI18n } from "../systems/I18nContext";
 
 const RARITY_COLORS = {
   common: "#ffffff",
   rare: "#8b5cf6",
   hidden: "#fbbf24",
-};
-
-const RARITY_LABELS = {
-  common: "Common",
-  rare: "Rare",
-  hidden: "Hidden",
 };
 
 function CardTile({ card, collected, onSelect }) {
@@ -65,7 +60,7 @@ function CardTile({ card, collected, onSelect }) {
   );
 }
 
-function ExpandedCard({ card, onClose }) {
+function ExpandedCard({ card, onClose, t }) {
   const borderColor = RARITY_COLORS[card.rarity] || "#ffffff";
 
   return (
@@ -123,7 +118,7 @@ function ExpandedCard({ card, onClose }) {
           borderRadius: "999px",
           border: `1px solid ${borderColor}44`,
         }}>
-          {RARITY_LABELS[card.rarity]}
+          {t(`codex.rarity.${card.rarity}`)}
         </span>
         <p style={{
           margin: 0,
@@ -149,7 +144,7 @@ function ExpandedCard({ card, onClose }) {
             textTransform: "uppercase",
             marginBottom: "6px",
           }}>
-            Real World
+            {t("codex.realWorld")}
           </div>
           <div style={{
             fontSize: "0.8rem",
@@ -166,6 +161,7 @@ function ExpandedCard({ card, onClose }) {
 
 export default function Codex({ isOpen, onClose }) {
   const { state } = useGame();
+  const { t } = useI18n();
   const [selectedCard, setSelectedCard] = useState(null);
 
   const collectedIds = new Set(state.codex.map((c) => c.id));
@@ -238,7 +234,7 @@ export default function Codex({ isOpen, onClose }) {
                   letterSpacing: "0.2em",
                   color: "#e2e8f0",
                 }}>
-                  AI CODEX
+                  {t("codex.title")}
                 </h2>
                 <button
                   onClick={onClose}
@@ -266,7 +262,7 @@ export default function Codex({ isOpen, onClose }) {
                 color: "#64748b",
                 letterSpacing: "0.1em",
               }}>
-                {collectedCount}/{totalCards} Cards
+                {collectedCount}/{totalCards} {t("codex.cards")}
               </div>
               {/* Progress bar */}
               <div style={{
@@ -356,6 +352,7 @@ export default function Codex({ isOpen, onClose }) {
                 key="expanded-card"
                 card={selectedCard}
                 onClose={() => setSelectedCard(null)}
+                t={t}
               />
             )}
           </AnimatePresence>
